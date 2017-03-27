@@ -1,6 +1,7 @@
 package luh.uni.hannover.hci.indoornavi;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -15,7 +16,11 @@ import android.view.MenuItem;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.wearable.Asset;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.PutDataMapRequest;
+import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
 
 import java.io.ByteArrayOutputStream;
@@ -26,6 +31,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     private int imgCount = 0;
 
     private String TAGAPI = "Google Api";
+    private GoogleApiClient mGoogleApiClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,7 +40,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        GoogleApiClient mGoogleApiClient = new GoogleApiClient.Builder(this)
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(Wearable.API)
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
@@ -96,6 +102,15 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     }
 
     private void sendImage() {
+        String filePath = imgPath + imgCount + ".png";
+        Bitmap myBitmap = BitmapFactory.decodeFile(filePath);
+        Asset img = createAssetFromBitmap(myBitmap);
+
+        PutDataMapRequest dataMap = PutDataMapRequest.create("/img");
+        dataMap.getDataMap().putAsset("navImage", img);
+        PutDataRequest request = dataMap.asPutDataRequest();
+        PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi
+                .putDataItem(mGoogleApiClient, request);
 
     }
 }
