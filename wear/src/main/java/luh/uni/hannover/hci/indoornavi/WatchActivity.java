@@ -1,17 +1,22 @@
 package luh.uni.hannover.hci.indoornavi;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.Image;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.wearable.view.WatchViewStub;
 import android.util.Log;
+import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.images.ImageManager;
 import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
@@ -25,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 public class WatchActivity extends Activity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, DataApi.DataListener {
 
     private TextView mTextView;
+    private ImageView mImageView;
 
     private String TAGAPI = "Google Api";
     private GoogleApiClient mGoogleApiClient;
@@ -39,6 +45,7 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
             @Override
             public void onLayoutInflated(WatchViewStub stub) {
                 mTextView = (TextView) stub.findViewById(R.id.text);
+                mImageView = (ImageView) stub.findViewById(R.id.imgView);
             }
         });
 
@@ -53,6 +60,7 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
     @Override
     public void onConnected(@Nullable Bundle bundle) {
         Log.e(TAGAPI, "Connected");
+        Wearable.DataApi.addListener(mGoogleApiClient, this);
     }
 
     @Override
@@ -89,13 +97,21 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
 
     @Override
     public void onDataChanged(DataEventBuffer dataEvents) {
+
+        Log.d(TAGAPI, "DataChanged");
         for (DataEvent event : dataEvents) {
+            Log.d(TAGAPI, event.getDataItem().getUri().getPath() + "");
             if (event.getType() == DataEvent.TYPE_CHANGED &&
-                    event.getDataItem().getUri().getPath().equals("/image")) {
+                    event.getDataItem().getUri().getPath().equals("/img")) {
                 DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
-                Asset profileAsset = dataMapItem.getDataMap().getAsset("profileImage");
+                Asset profileAsset = dataMapItem.getDataMap().getAsset("navImage");
+
+                //make this async
                 Bitmap bitmap = loadBitmapFromAsset(profileAsset);
                 // Do something with the bitmap
+
+                mImageView.setImageBitmap(bitmap);
+                Log.d(TAGAPI, "Image");
             }
         }
     }

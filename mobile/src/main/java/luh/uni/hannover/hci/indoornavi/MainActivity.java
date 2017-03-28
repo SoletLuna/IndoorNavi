@@ -13,6 +13,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ImageView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -24,11 +25,14 @@ import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 
 public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
-    private String imgPath = "/storage/emulated/0/WiFiApp/ImagePath/";
-    private int imgCount = 0;
+    private String imgPath = "/storage/emulated/0/WiFiApp/ImagePaths/";
+    private int imgCount = 1;
+
+    private ImageView mImageView;
 
     private String TAGAPI = "Google Api";
     private GoogleApiClient mGoogleApiClient;
@@ -39,6 +43,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        mImageView = (ImageView) findViewById(R.id.imageView);
 
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(Wearable.API)
@@ -51,12 +57,24 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+                sendImage();
             }
         });
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        mGoogleApiClient.connect();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        mGoogleApiClient.disconnect();
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -102,12 +120,14 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     }
 
     private void sendImage() {
-        String filePath = imgPath + imgCount + ".png";
+        String filePath = imgPath + "img" + imgCount + ".jpg";
         Bitmap myBitmap = BitmapFactory.decodeFile(filePath);
+        mImageView.setImageBitmap(myBitmap);
         Asset img = createAssetFromBitmap(myBitmap);
 
         PutDataMapRequest dataMap = PutDataMapRequest.create("/img");
         dataMap.getDataMap().putAsset("navImage", img);
+        dataMap.getDataMap().putLong("timestamp", System.currentTimeMillis());
         PutDataRequest request = dataMap.asPutDataRequest();
         PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi
                 .putDataItem(mGoogleApiClient, request);
