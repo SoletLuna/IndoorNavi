@@ -115,7 +115,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
     private static Asset createAssetFromBitmap(Bitmap bitmap) {
         final ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream);
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteStream);
         return Asset.createFromBytes(byteStream.toByteArray());
     }
 
@@ -128,9 +128,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         PutDataMapRequest dataMap = PutDataMapRequest.create("/img");
         dataMap.getDataMap().putAsset("navImage", img);
         dataMap.getDataMap().putLong("timestamp", System.currentTimeMillis());
+        dataMap.setUrgent();
         PutDataRequest request = dataMap.asPutDataRequest();
         PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi
                 .putDataItem(mGoogleApiClient, request);
+
+        //imgCount++;
 
     }
 }

@@ -22,9 +22,12 @@ import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
 import com.google.android.gms.wearable.DataMapItem;
+import com.google.android.gms.wearable.Node;
+import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.Wearable;
 
 import java.io.InputStream;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class WatchActivity extends Activity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, DataApi.DataListener {
@@ -34,6 +37,7 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
 
     private String TAGAPI = "Google Api";
     private GoogleApiClient mGoogleApiClient;
+    private String nodeId;
 
 
     @Override
@@ -55,6 +59,23 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
                 .addOnConnectionFailedListener(this)
                 .build();
         mGoogleApiClient.connect();
+        retrieveDeviceNode();
+    }
+
+    private void retrieveDeviceNode() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                mGoogleApiClient.blockingConnect(500, TimeUnit.MILLISECONDS);
+                NodeApi.GetConnectedNodesResult result =
+                        Wearable.NodeApi.getConnectedNodes(mGoogleApiClient).await();
+                List<Node> nodes = result.getNodes();
+                if (nodes.size() > 0) {
+                    nodeId = nodes.get(0).getId();
+                }
+                mGoogleApiClient.disconnect();
+            }
+        }).start();
     }
 
     @Override
@@ -74,6 +95,7 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
     }
 
     public Bitmap loadBitmapFromAsset(Asset asset) {
+
         if (asset == null) {
             throw new IllegalArgumentException("Asset must be non-null");
         }
@@ -106,7 +128,6 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
                 DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
                 Asset profileAsset = dataMapItem.getDataMap().getAsset("navImage");
 
-                //make this async
                 Bitmap bitmap = loadBitmapFromAsset(profileAsset);
                 // Do something with the bitmap
 
