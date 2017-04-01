@@ -5,11 +5,13 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.Image;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.wearable.view.WatchViewStub;
 import android.util.Log;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -37,13 +39,14 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
 
     private String TAGAPI = "Google Api";
     private GoogleApiClient mGoogleApiClient;
-    private String nodeId;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_watch);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         final WatchViewStub stub = (WatchViewStub) findViewById(R.id.watch_view_stub);
         stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
             @Override
@@ -59,23 +62,6 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
                 .addOnConnectionFailedListener(this)
                 .build();
         mGoogleApiClient.connect();
-        retrieveDeviceNode();
-    }
-
-    private void retrieveDeviceNode() {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                mGoogleApiClient.blockingConnect(500, TimeUnit.MILLISECONDS);
-                NodeApi.GetConnectedNodesResult result =
-                        Wearable.NodeApi.getConnectedNodes(mGoogleApiClient).await();
-                List<Node> nodes = result.getNodes();
-                if (nodes.size() > 0) {
-                    nodeId = nodes.get(0).getId();
-                }
-                mGoogleApiClient.disconnect();
-            }
-        }).start();
     }
 
     @Override
@@ -128,12 +114,46 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
                 DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
                 Asset profileAsset = dataMapItem.getDataMap().getAsset("navImage");
 
-                Bitmap bitmap = loadBitmapFromAsset(profileAsset);
+                new LoadFromAssetTask().execute(profileAsset);
+                //Bitmap bitmap = loadBitmapFromAsset(profileAsset);
                 // Do something with the bitmap
 
-                mImageView.setImageBitmap(bitmap);
+                //mImageView.setImageBitmap(bitmap);
                 Log.d(TAGAPI, "Image");
             }
+        }
+    }
+
+    private class LoadFromAssetTask extends AsyncTask<Asset, Integer, Bitmap> {
+
+        @Override
+        protected Bitmap doInBackground(Asset... assets) {
+            Asset asset = assets[0];
+            if (asset == null) {
+                throw new IllegalArgumentException("Asset must be non-null");
+            }
+            ConnectionResult result =
+                    mGoogleApiClient.blockingConnect(500, TimeUnit.MILLISECONDS);
+            if (!result.isSuccess()) {
+                return null;
+            }
+            // convert asset into a file descriptor and block until it's ready
+            InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
+                    mGoogleApiClient, asset).await().getInputStream();
+            //mGoogleApiClient.disconnect();
+
+            if (assetInputStream == null) {
+                Log.w(TAGAPI, "Requested an unknown Asset.");
+                return null;
+            }
+            // decode the stream into a bitmap
+            return BitmapFactory.decodeStream(assetInputStream);
+        }
+
+        @Override
+        protected void onPostExecute(Bitmap result) {
+            mImageView.setImageBitmap(result);
+            Log.d(TAGAPI, "ImageTask");
         }
     }
 

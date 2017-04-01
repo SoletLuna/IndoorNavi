@@ -133,7 +133,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi
                 .putDataItem(mGoogleApiClient, request);
 
-        //imgCount++;
+        imgCount = (imgCount +1) % 160;
 
     }
 }
