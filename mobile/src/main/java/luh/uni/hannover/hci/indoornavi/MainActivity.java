@@ -1,5 +1,6 @@
 package luh.uni.hannover.hci.indoornavi;
 
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
@@ -43,8 +44,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        mImageView = (ImageView) findViewById(R.id.imageView);
 
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(Wearable.API)
@@ -95,6 +94,14 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
             return true;
         }
 
+        switch (id) {
+            case R.id.action_settings:
+                return true;
+            case R.id.open_sensors:
+                startActivity(new Intent(this, SensorActivity.class));
+                return true;
+        }
+
         return super.onOptionsItemSelected(item);
     }
 
@@ -122,7 +129,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     private void sendImage() {
         String filePath = imgPath + "img" + imgCount + ".jpg";
         Bitmap myBitmap = BitmapFactory.decodeFile(filePath);
-        mImageView.setImageBitmap(myBitmap);
         Asset img = createAssetFromBitmap(myBitmap);
 
         PutDataMapRequest dataMap = PutDataMapRequest.create("/img");
@@ -133,7 +139,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi
                 .putDataItem(mGoogleApiClient, request);
 
-        imgCount = (imgCount +1) % 160;
+        imgCount = (imgCount % 160) +1;
 
     }
 }

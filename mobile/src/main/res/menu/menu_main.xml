@@ -7,4 +7,10 @@
         android:orderInCategory="100"
         android:title="@string/action_settings"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/open_sensors"
+        android:orderInCategory="100"
+        android:title="@string/open_sensors"
+        app:showAsAction="never" />
 </menu>
