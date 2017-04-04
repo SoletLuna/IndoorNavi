@@ -12,15 +12,25 @@
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true"
-        android:text="@string/hello_round" />
+        android:text="@string/hello_round"
+        android:visibility="invisible" />
 
     <ImageView
         android:id="@+id/imgView"
+        android:layout_width="320dp"
+        android:layout_height="290dp"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:src="@color/black"
+        android:visibility="invisible" />
+
+    <ToggleButton
+        android:id="@+id/sensoring_TButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_above="@+id/text"
-        android:layout_alignEnd="@+id/text"
-        android:layout_alignParentTop="true"
-        android:layout_alignStart="@+id/text"
-        android:src="@drawable/common_google_signin_btn_icon_light_normal_background" />
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:text="ToggleButton"
+        android:textOff="Start Sensors"
+        android:textOn="Stop Sensors" />
 </RelativeLayout>

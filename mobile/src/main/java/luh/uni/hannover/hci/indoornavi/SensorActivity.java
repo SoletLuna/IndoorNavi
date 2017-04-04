@@ -6,12 +6,34 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 
-public class SensorActivity extends AppCompatActivity implements SensorEventListener {
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.wearable.MessageApi;
+import com.google.android.gms.wearable.MessageEvent;
+import com.google.android.gms.wearable.Node;
+import com.google.android.gms.wearable.NodeApi;
+import com.google.android.gms.wearable.Wearable;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+
+public class SensorActivity extends AppCompatActivity implements SensorEventListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, MessageApi.MessageListener {
 
     private Sensor accelSensor;
     private Sensor magneticSensor;
@@ -22,11 +44,35 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
 
     private SensorManager mSensorManager;
 
-    private final float[] mAccelerometerReading = new float[3];
-    private final float[] mMagnetometerReading = new float[3];
+    private  float[] mAccelerometerReading = new float[3];
+    private  float[] mMagnetometerReading = new float[3];
+    private  float[] mMLinAcccelReading = new float[3];
+    private float mPressureReading;
+    private int stepDetectCount = 0;
+    private int stepCount = 0;
 
-    private final float[] mRotationMatrix = new float[9];
-    private final float[] mOrientationAngles = new float[3];
+    private  float[] mRotationMatrix = new float[9];
+    private  float[] mOrientationAngles = new float[3];
+
+    private List<float[]> accelSensorList = new ArrayList<>();
+    private List<Float> accelMagSensorList = new ArrayList<>();
+    private List<float[]> linAccelSensorList = new ArrayList<>();
+    private List<Float> linMagSensorList = new ArrayList<>();
+    private List<float[]> orientSensorList = new ArrayList<>();
+    private List<Float> pressureSensorList = new ArrayList<>();
+    private List<Integer> stepCountSensorList = new ArrayList<>();
+    private List<Integer> stepDetectSensorList = new ArrayList<>();
+
+    private Long startTime;
+    private boolean tracking = false;
+    private int trackCount = 0;
+
+    private Handler mHandler;
+
+    private String TAGAPI = "Google Api";
+    private GoogleApiClient mGoogleApiClient;
+    private String nodeId = "";
+    private final String SENSOR_MESSAGE = "/sensor";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,14 +81,24 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        initializeApi();
+
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                startSensoring();
-                view.setVisibility(View.INVISIBLE);
+                sendStartMessage();
             }
         });
+    }
+
+    private void initializeApi() {
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addApi(Wearable.API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
+        retrieveDeviceNode();
     }
 
     private void startSensoring() {
@@ -62,6 +118,19 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         mSensorManager.registerListener(this, pressureSensor, SensorManager.SENSOR_DELAY_UI);
         mSensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_UI);
         mSensorManager.registerListener(this, stepDetectSensor, SensorManager.SENSOR_DELAY_UI);
+        mHandler = new Handler();
+        mHandler.post(collectData);
+    }
+
+    private void stopSensoring() {
+        mSensorManager.unregisterListener(this, accelSensor);
+        mSensorManager.unregisterListener(this, linAccelSensor);
+        mSensorManager.unregisterListener(this, magneticSensor);
+        mSensorManager.unregisterListener(this, pressureSensor);
+        mSensorManager.unregisterListener(this, stepDetectSensor);
+        mSensorManager.unregisterListener(this, stepCountSensor);
+
+        saveSensorData();
     }
 
     @Override
@@ -73,7 +142,8 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         }
 
         else if (sensorEvent.sensor == linAccelSensor) {
-
+            System.arraycopy(sensorEvent.values, 0, mMLinAcccelReading,
+                    0, mMLinAcccelReading.length);
         }
 
         else if (sensorEvent.sensor == magneticSensor) {
@@ -82,15 +152,15 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         }
 
         else if (sensorEvent.sensor == pressureSensor) {
-
+            mPressureReading = sensorEvent.values[0];
         }
 
         else  if (sensorEvent.sensor == stepCountSensor) {
-
+            stepCount = (int) sensorEvent.values[0];
         }
 
         else  if (sensorEvent.sensor == stepDetectSensor) {
-
+            stepDetectCount++;
         }
 
         updateOrientationAngles();
@@ -110,8 +180,173 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         // "mOrientationAngles" now has up-to-date information.
     }
 
+    private void saveSensorData() {
+        saveDataArray(accelSensorList, "accel" + trackCount + ".txt");
+        saveDataArray(linAccelSensorList, "linAccel" + trackCount + ".txt");
+        saveDataArray(orientSensorList, "ori" + trackCount + ".txt");
+        saveDataPoints(accelMagSensorList, "accelMag" + trackCount + ".txt");
+        saveDataPoints(linMagSensorList, "linAccelMag" + trackCount + ".txt");
+        saveDataPoints(stepCountSensorList, "stepCount" + trackCount + ".txt");
+        saveDataPoints(stepDetectSensorList, "stepDetect" + trackCount + ".txt");
+        saveDataPoints(pressureSensorList, "pressure" + trackCount + ".txt");
+
+        clearSensorData();
+    }
+
+    private void clearSensorData() {
+        accelSensorList.clear();
+        linAccelSensorList.clear();
+        accelMagSensorList.clear();
+        linMagSensorList.clear();
+        pressureSensorList.clear();
+        stepCountSensorList.clear();
+        stepDetectSensorList.clear();
+        orientSensorList.clear();
+    }
+
+    private void saveDataArray(List<float[]> data, String filename) {
+        File root = new File(Environment.getExternalStorageDirectory(),"WiFiApp/SensorData");
+
+        StringBuilder sb = new StringBuilder();
+        Log.d("LENGTH", data.size() +"");
+        for (int i=0; i < data.size(); i++) {
+            sb.append(Arrays.toString(data.get(i)));
+            sb.append(System.getProperty("line.separator"));
+        }
+
+        try {
+            File myFile = new File(root, filename);
+            FileOutputStream fos = new FileOutputStream(myFile);
+            fos.write(sb.toString().getBytes());
+            fos.getFD().sync();
+            fos.close();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void saveDataPoints(List<?> data, String filename) {
+        File root = new File(Environment.getExternalStorageDirectory(),"WiFiApp/SensorData");
+
+        StringBuilder sb = new StringBuilder();
+
+        for (int i=0; i < data.size(); i++) {
+            sb.append(data.get(i));
+            sb.append(System.getProperty("line.separator"));
+        }
+
+        try {
+            File myFile = new File(root, filename);
+            FileOutputStream fos = new FileOutputStream(myFile);
+            fos.write(sb.toString().getBytes());
+            fos.getFD().sync();
+            fos.close();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void onAccuracyChanged(Sensor sensor, int i) {
 
+    }
+
+    private Runnable collectData = new Runnable() {
+        @Override
+        public void run() {
+            float[] tmpAccel = new float[]{mAccelerometerReading[0], mAccelerometerReading[1], mAccelerometerReading[2]};
+            accelSensorList.add(tmpAccel);
+            float mag = (float) Math.sqrt(mAccelerometerReading[0] * mAccelerometerReading[0] + mAccelerometerReading[1] * mAccelerometerReading[1] + mAccelerometerReading[2] * mAccelerometerReading[2]);
+            accelMagSensorList.add(mag);
+            float[] tmpLinAccel = new float[]{mMLinAcccelReading[0], mMLinAcccelReading[1], mMLinAcccelReading[2]};
+            linAccelSensorList.add(tmpLinAccel);
+            float linMag = (float) Math.sqrt(mMLinAcccelReading[0] * mMLinAcccelReading[0] + mMLinAcccelReading[1] * mMLinAcccelReading[1] + mMLinAcccelReading[2] * mMLinAcccelReading[2]);
+            linMagSensorList.add(linMag);
+            float[] tmpOri = new float[]{mOrientationAngles[0], mOrientationAngles[1], mOrientationAngles[2]};
+            orientSensorList.add(tmpOri);
+            pressureSensorList.add(mPressureReading);
+            stepDetectSensorList.add(stepCount);
+            stepCountSensorList.add(stepDetectCount);
+            if (tracking)
+                mHandler.postDelayed(collectData, 100);
+            else {
+                stopSensoring();
+                mHandler.removeCallbacks(collectData);
+            }
+        }
+    };
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        mGoogleApiClient.connect();
+        Wearable.MessageApi.addListener(mGoogleApiClient, this);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        mGoogleApiClient.disconnect();
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
+    }
+
+    @Override
+    public void onMessageReceived(MessageEvent messageEvent) {
+        Log.d("MESSAGE", "received");
+        if (!tracking) {
+            tracking = true;
+            startSensoring();
+            startTime = System.currentTimeMillis();
+        }
+        else {
+            tracking = false;
+            trackCount++;
+        }
+    }
+
+    private void retrieveDeviceNode() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                mGoogleApiClient.blockingConnect(500, TimeUnit.MILLISECONDS);
+                NodeApi.GetConnectedNodesResult result =
+                        Wearable.NodeApi.getConnectedNodes(mGoogleApiClient).await();
+                List<Node> nodes = result.getNodes();
+                if (nodes.size() > 0) {
+                    nodeId = nodes.get(0).getId();
+                }
+                mGoogleApiClient.disconnect();
+            }
+        }).start();
+    }
+
+    private void sendStartMessage() {
+        if (nodeId != null) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    mGoogleApiClient.blockingConnect(500, TimeUnit.MILLISECONDS);
+                    Wearable.MessageApi.sendMessage(mGoogleApiClient, nodeId, SENSOR_MESSAGE, null);
+                    mGoogleApiClient.disconnect();
+                }
+            }).start();
+        }
     }
 }
