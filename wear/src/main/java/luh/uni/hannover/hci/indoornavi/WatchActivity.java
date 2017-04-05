@@ -65,7 +65,6 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
                 mImageView = (ImageView) stub.findViewById(R.id.imgView);
                 mImageView.setVisibility(View.GONE);
                 mTButton = (ToggleButton) findViewById(R.id.sensoring_TButton);
-                mTButton.setVisibility(View.GONE);
                 mTButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                     @Override
                     public void onCheckedChanged(CompoundButton compoundButton, boolean b) {

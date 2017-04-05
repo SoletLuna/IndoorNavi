@@ -20,8 +20,6 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.wearable.MessageApi;
 import com.google.android.gms.wearable.MessageEvent;
-import com.google.android.gms.wearable.Node;
-import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.Wearable;
 
 import java.io.File;
@@ -30,7 +28,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 
 public class SensorActivity extends AppCompatActivity implements SensorEventListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, MessageApi.MessageListener {
@@ -71,8 +68,6 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
 
     private String TAGAPI = "Google Api";
     private GoogleApiClient mGoogleApiClient;
-    private String nodeId = "";
-    private final String SENSOR_MESSAGE = "/sensor";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,7 +82,15 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                sendStartMessage();
+                if (!tracking) {
+                    tracking = true;
+                    startSensoring();
+                    startTime = System.currentTimeMillis();
+                }
+                else {
+                    tracking = false;
+                    trackCount++;
+                }
             }
         });
     }
@@ -98,7 +101,6 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
                 .build();
-        retrieveDeviceNode();
     }
 
     private void startSensoring() {
@@ -318,35 +320,6 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         else {
             tracking = false;
             trackCount++;
-        }
-    }
-
-    private void retrieveDeviceNode() {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                mGoogleApiClient.blockingConnect(500, TimeUnit.MILLISECONDS);
-                NodeApi.GetConnectedNodesResult result =
-                        Wearable.NodeApi.getConnectedNodes(mGoogleApiClient).await();
-                List<Node> nodes = result.getNodes();
-                if (nodes.size() > 0) {
-                    nodeId = nodes.get(0).getId();
-                }
-                mGoogleApiClient.disconnect();
-            }
-        }).start();
-    }
-
-    private void sendStartMessage() {
-        if (nodeId != null) {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    mGoogleApiClient.blockingConnect(500, TimeUnit.MILLISECONDS);
-                    Wearable.MessageApi.sendMessage(mGoogleApiClient, nodeId, SENSOR_MESSAGE, null);
-                    mGoogleApiClient.disconnect();
-                }
-            }).start();
         }
     }
 }

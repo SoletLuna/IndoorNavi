@@ -5,7 +5,10 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.wearable.view.WatchViewStub;
+import android.util.Log;
+import android.widget.CompoundButton;
 import android.widget.TextView;
+import android.widget.ToggleButton;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -21,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 public class SensorCompanionActivity extends Activity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, MessageApi.MessageListener {
 
     private TextView mTextView;
+    private ToggleButton mToggleButton;
 
     private String TAGAPI = "Google Api";
     private GoogleApiClient mGoogleApiClient;
@@ -37,6 +41,21 @@ public class SensorCompanionActivity extends Activity implements GoogleApiClient
             @Override
             public void onLayoutInflated(WatchViewStub stub) {
                 mTextView = (TextView) stub.findViewById(R.id.text);
+                mToggleButton = (ToggleButton) findViewById(R.id.toggleButton);
+                mToggleButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                        if (b) {
+                            retrieveDeviceNode();
+                            Log.d("IDSend", nodeId);
+                            sendStartMessage();
+                        }
+                        else {
+                            Log.d("Toggle", "Off");
+                            sendStopMessage();
+                        }
+                    }
+                });
             }
         });
 

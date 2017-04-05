@@ -6,6 +6,16 @@
     tools:context="luh.uni.hannover.hci.indoornavi.SensorCompanionActivity"
     tools:deviceIds="wear_round">
 
+    <ToggleButton
+        android:id="@+id/toggleButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:text="ToggleButton"
+        android:textOff="Start Sensors App"
+        android:textOn="Stop Sensors App" />
+
     <TextView
         android:id="@+id/text"
         android:layout_width="wrap_content"
