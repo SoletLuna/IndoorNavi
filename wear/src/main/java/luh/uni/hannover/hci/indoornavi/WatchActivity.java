@@ -69,7 +69,6 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
                     @Override
                     public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                         if (b) {
-                            retrieveDeviceNode();
                             Log.d("IDSend", nodeId);
                             sendStartMessage();
                         }
@@ -89,6 +88,8 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
                 .addOnConnectionFailedListener(this)
                 .build();
         mGoogleApiClient.connect();
+
+        retrieveDeviceNode();
     }
 
     private void retrieveDeviceNode() {
@@ -101,6 +102,7 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
                 List<Node> nodes = result.getNodes();
                 if (nodes.size() > 0) {
                     nodeId = nodes.get(0).getId();
+                    Log.d(TAGAPI, "ID retrieved");
                 }
                 mGoogleApiClient.disconnect();
             }
