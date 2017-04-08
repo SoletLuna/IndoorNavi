@@ -6,8 +6,17 @@ import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
+import android.widget.ExpandableListView;
 
-public class FingerprintingActivity extends AppCompatActivity {
+/**
+ * Activity for registering fingerprints. Multiple ways of filtering/Saving scanned fingerprints are
+ * proposed in here (number of scans, footsteps/location, filter methods: low RSS, etc. Shows scanned fingerprints
+ * in an expandable list view with more information
+ */
+
+public class WifiFingerprintingActivity extends AppCompatActivity {
+
+    private ExpandableListView mExpListView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,6 +33,8 @@ public class FingerprintingActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
+
+        mExpListView = (ExpandableListView) findViewById(R.id.expListView);
     }
 
 }

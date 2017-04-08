@@ -47,7 +47,7 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
     private  float[] mMLinAcccelReading = new float[3];
     private float mPressureReading;
     private int stepDetectCount = 0;
-    private int stepCount = 0;
+    private boolean stepped = false;
 
     private  float[] mRotationMatrix = new float[9];
     private  float[] mOrientationAngles = new float[3];
@@ -58,7 +58,6 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
     private List<Float> linMagSensorList = new ArrayList<>();
     private List<float[]> orientSensorList = new ArrayList<>();
     private List<Float> pressureSensorList = new ArrayList<>();
-    private List<Integer> stepCountSensorList = new ArrayList<>();
     private List<Integer> stepDetectSensorList = new ArrayList<>();
 
     private Long startTime;
@@ -114,14 +113,12 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         linAccelSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         magneticSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
         pressureSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
-        stepCountSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
         stepDetectSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR);
 
         mSensorManager.registerListener(this, accelSensor, SensorManager.SENSOR_DELAY_UI);
         mSensorManager.registerListener(this, linAccelSensor, SensorManager.SENSOR_DELAY_UI);
         mSensorManager.registerListener(this, magneticSensor, SensorManager.SENSOR_DELAY_UI);
         mSensorManager.registerListener(this, pressureSensor, SensorManager.SENSOR_DELAY_UI);
-        mSensorManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_UI);
         mSensorManager.registerListener(this, stepDetectSensor, SensorManager.SENSOR_DELAY_UI);
         mHandler = new Handler();
         mHandler.post(collectData);
@@ -160,12 +157,11 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
             mPressureReading = sensorEvent.values[0];
         }
 
-        else  if (sensorEvent.sensor == stepCountSensor) {
-            stepCount = (int) sensorEvent.values[0];
-        }
 
         else  if (sensorEvent.sensor == stepDetectSensor) {
             stepDetectCount++;
+            stepped = true;
+
         }
 
         updateOrientationAngles();
@@ -191,7 +187,6 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         saveDataArray(orientSensorList, "ori" + trackCount + ".txt");
         saveDataPoints(accelMagSensorList, "accelMag" + trackCount + ".txt");
         saveDataPoints(linMagSensorList, "linAccelMag" + trackCount + ".txt");
-        saveDataPoints(stepCountSensorList, "stepCount" + trackCount + ".txt");
         saveDataPoints(stepDetectSensorList, "stepDetect" + trackCount + ".txt");
         saveDataPoints(pressureSensorList, "pressure" + trackCount + ".txt");
 
@@ -204,7 +199,6 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         accelMagSensorList.clear();
         linMagSensorList.clear();
         pressureSensorList.clear();
-        stepCountSensorList.clear();
         stepDetectSensorList.clear();
         orientSensorList.clear();
     }
@@ -272,8 +266,12 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
             float[] tmpOri = new float[]{mOrientationAngles[0], mOrientationAngles[1], mOrientationAngles[2]};
             orientSensorList.add(tmpOri);
             pressureSensorList.add(mPressureReading);
-            stepDetectSensorList.add(stepCount);
-            stepCountSensorList.add(stepDetectCount);
+            if (stepped)
+                stepDetectSensorList.add(1);
+            else {
+                stepDetectSensorList.add(0);
+                stepped = false;
+            }
             if (tracking)
                 mHandler.postDelayed(collectData, 100);
             else {

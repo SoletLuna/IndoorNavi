@@ -26,10 +26,10 @@
         </activity>
         <activity
             android:name=".SensorActivity"
-            android:label="@string/title_activity_navigation"
+            android:label="@string/title_activity_sensor"
             android:theme="@style/AppTheme.NoActionBar" />
         <activity
-            android:name=".FingerprintingActivity"
+            android:name=".WifiFingerprintingActivity"
             android:label="@string/title_activity_fingerprinting"
             android:theme="@style/AppTheme.NoActionBar"></activity>
     </application>
