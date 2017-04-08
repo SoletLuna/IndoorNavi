@@ -100,6 +100,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
             case R.id.open_sensors:
                 startActivity(new Intent(this, SensorActivity.class));
                 return true;
+            case R.id.open_fingerprinting:
+                startActivity(new Intent(this, WifiFingerprintingActivity.class));
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
