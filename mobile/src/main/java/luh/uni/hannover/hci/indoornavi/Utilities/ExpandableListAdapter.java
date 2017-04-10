@@ -1,4 +1,4 @@
-package luh.uni.hannover.hci.indoornavi;
+package luh.uni.hannover.hci.indoornavi.Utilities;
 
 import android.content.Context;
 import android.graphics.Typeface;
@@ -10,6 +10,8 @@ import android.widget.TextView;
 
 import java.util.HashMap;
 import java.util.List;
+
+import luh.uni.hannover.hci.indoornavi.R;
 
 /**
  * Created by solet on 05/04/2017.

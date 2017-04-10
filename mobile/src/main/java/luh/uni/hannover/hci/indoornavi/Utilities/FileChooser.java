@@ -1,4 +1,4 @@
-package luh.uni.hannover.hci.indoornavi;
+package luh.uni.hannover.hci.indoornavi.Utilities;
 
 import java.io.File;
 
@@ -16,8 +16,8 @@ import java.io.File;
         import android.widget.ArrayAdapter;
         import android.widget.ListView;
         import android.widget.TextView;
-        import java.io.File;
-        import java.io.FileFilter;
+
+import java.io.FileFilter;
         import java.util.Arrays;
 
 // File Chooser for selecting navigationpaths or files

@@ -1,4 +1,7 @@
-package luh.uni.hannover.hci.indoornavi;
+package luh.uni.hannover.hci.indoornavi.WifiUtilities;
+
+import android.text.TextUtils;
+import android.view.TextureView;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,6 +49,17 @@ public class WifiFingerprint {
 
     public int getStepCount() {
         return stepToFP;
+    }
+
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for (String key : wifiMap.keySet()) {
+            sb.append(key + ": [");
+            sb.append(TextUtils.join(",", wifiMap.get(key)));
+            sb.append("]");
+            sb.append(System.lineSeparator());
+        }
+        return sb.toString();
     }
 
 }

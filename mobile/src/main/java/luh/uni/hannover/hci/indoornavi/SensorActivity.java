@@ -16,6 +16,7 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -47,7 +48,9 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
     private  float[] mMLinAcccelReading = new float[3];
     private float mPressureReading;
     private int stepDetectCount = 0;
+    private int lastStepDetect = 0;
     private boolean stepped = false;
+    private float alpha = 0.25f;
 
     private  float[] mRotationMatrix = new float[9];
     private  float[] mOrientationAngles = new float[3];
@@ -69,18 +72,21 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
     private String TAGAPI = "Google Api";
     private GoogleApiClient mGoogleApiClient;
 
+    private TextView tv;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_navigation);
+        setContentView(R.layout.activity_sensor);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         initializeApi();
 
+        tv = (TextView) findViewById(R.id.textView);
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setVisibility(View.GONE);
+        fab.setVisibility(View.VISIBLE);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -160,8 +166,6 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
 
         else  if (sensorEvent.sensor == stepDetectSensor) {
             stepDetectCount++;
-            stepped = true;
-
         }
 
         updateOrientationAngles();
@@ -187,10 +191,40 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         saveDataArray(orientSensorList, "ori" + trackCount + ".txt");
         saveDataPoints(accelMagSensorList, "accelMag" + trackCount + ".txt");
         saveDataPoints(linMagSensorList, "linAccelMag" + trackCount + ".txt");
+        List<Integer> stepList = fitData(stepDetectSensorList);
+        saveDataPoints(stepList, "stepDetectFit" + trackCount + ".txt");
         saveDataPoints(stepDetectSensorList, "stepDetect" + trackCount + ".txt");
         saveDataPoints(pressureSensorList, "pressure" + trackCount + ".txt");
 
         clearSensorData();
+    }
+
+    private List<Integer> fitData(List<Integer> stepList) {
+        List<Integer> fitList = new ArrayList<>();
+        int step = 0;
+        for (int i=0; i < stepList.size(); i++) {
+            if (step < stepList.get(i)) {
+                fitList.add(1);
+                step = stepList.get(i);
+            } else {
+                fitList.add(0);
+            }
+        }
+        return fitList;
+    }
+
+    private List<Float> lowPassFilter(List<Float> input) {
+        List<Float> output = new ArrayList<>();
+        float out = 0.0f;
+        for (int i=0; i < input.size(); i++) {
+            if (i == 0) {
+                output.add(input.get(i));
+            } else {
+                out = output.get(i-1) + alpha * (input.get(i) - output.get(i-1));
+                output.add(out);
+            }
+        }
+        return output;
     }
 
     private void clearSensorData() {
@@ -201,6 +235,7 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         pressureSensorList.clear();
         stepDetectSensorList.clear();
         orientSensorList.clear();
+
     }
 
     private void saveDataArray(List<float[]> data, String filename) {
@@ -266,12 +301,9 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
             float[] tmpOri = new float[]{mOrientationAngles[0], mOrientationAngles[1], mOrientationAngles[2]};
             orientSensorList.add(tmpOri);
             pressureSensorList.add(mPressureReading);
-            if (stepped)
-                stepDetectSensorList.add(1);
-            else {
-                stepDetectSensorList.add(0);
-                stepped = false;
-            }
+            //tv.setText(tmpOri[0]*57.2958 + ", " + tmpOri[1]*57.2958 + ", " + tmpOri[2]*57.2958);
+            tv.setText(mPressureReading + "");
+            stepDetectSensorList.add(stepDetectCount);
             if (tracking)
                 mHandler.postDelayed(collectData, 100);
             else {
@@ -294,6 +326,14 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         super.onPause();
 
         mGoogleApiClient.disconnect();
+        tracking = false;
+        stopSensoring();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mGoogleApiClient.connect();
     }
 
     @Override
