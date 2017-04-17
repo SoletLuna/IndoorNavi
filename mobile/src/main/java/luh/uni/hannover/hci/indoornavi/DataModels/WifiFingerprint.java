@@ -1,4 +1,4 @@
-package luh.uni.hannover.hci.indoornavi.WifiUtilities;
+package luh.uni.hannover.hci.indoornavi.DataModels;
 
 import android.text.TextUtils;
 import android.view.TextureView;

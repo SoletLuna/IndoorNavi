@@ -23,6 +23,7 @@
             android:name=".SensorCompanionActivity"
             android:label="@string/title_activity_sensor_companion">
         </activity>
+        <service android:name=".Services.WatchService"></service>
     </application>
 
 </manifest>

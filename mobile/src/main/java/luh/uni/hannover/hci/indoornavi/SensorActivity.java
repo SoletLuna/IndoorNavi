@@ -48,9 +48,8 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
     private  float[] mMLinAcccelReading = new float[3];
     private float mPressureReading;
     private int stepDetectCount = 0;
-    private int lastStepDetect = 0;
-    private boolean stepped = false;
     private float alpha = 0.25f;
+    private int collectCounter = 0;
 
     private  float[] mRotationMatrix = new float[9];
     private  float[] mOrientationAngles = new float[3];
@@ -127,7 +126,7 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         mSensorManager.registerListener(this, pressureSensor, SensorManager.SENSOR_DELAY_UI);
         mSensorManager.registerListener(this, stepDetectSensor, SensorManager.SENSOR_DELAY_UI);
         mHandler = new Handler();
-        mHandler.post(collectData);
+        mHandler.postDelayed(collectData, 2000);
     }
 
     private void stopSensoring() {
@@ -186,15 +185,15 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
     }
 
     private void saveSensorData() {
-        saveDataArray(accelSensorList, "accel" + trackCount + ".txt");
-        saveDataArray(linAccelSensorList, "linAccel" + trackCount + ".txt");
-        saveDataArray(orientSensorList, "ori" + trackCount + ".txt");
-        saveDataPoints(accelMagSensorList, "accelMag" + trackCount + ".txt");
-        saveDataPoints(linMagSensorList, "linAccelMag" + trackCount + ".txt");
+        saveDataArray(lowPassArray(accelSensorList), "accel" + trackCount + ".txt");
+        saveDataArray(lowPassArray(linAccelSensorList), "linAccel" + trackCount + ".txt");
+        saveDataArray(lowPassArray(orientSensorList), "ori" + trackCount + ".txt");
+        saveDataPoints(lowPass(accelMagSensorList), "accelMag" + trackCount + ".txt");
+        saveDataPoints(lowPass(linMagSensorList), "linAccelMag" + trackCount + ".txt");
         List<Integer> stepList = fitData(stepDetectSensorList);
         saveDataPoints(stepList, "stepDetectFit" + trackCount + ".txt");
         saveDataPoints(stepDetectSensorList, "stepDetect" + trackCount + ".txt");
-        saveDataPoints(pressureSensorList, "pressure" + trackCount + ".txt");
+        saveDataPoints(lowPass(pressureSensorList), "pressure" + trackCount + ".txt");
 
         clearSensorData();
     }
@@ -213,14 +212,30 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         return fitList;
     }
 
-    private List<Float> lowPassFilter(List<Float> input) {
+    private List<Float> lowPass(List<Float> input) {
         List<Float> output = new ArrayList<>();
-        float out = 0.0f;
         for (int i=0; i < input.size(); i++) {
+            float out = 0.0f;
             if (i == 0) {
                 output.add(input.get(i));
             } else {
                 out = output.get(i-1) + alpha * (input.get(i) - output.get(i-1));
+                output.add(out);
+            }
+        }
+        return output;
+    }
+
+    private List<float[]> lowPassArray(List<float[]> input) {
+        List<float[]> output = new ArrayList<>();
+        for (int i=0; i < input.size(); i++) {
+            float[] out = new float[3];
+            if (i == 0) {
+                output.add(input.get(i));
+            } else {
+                out[0] = output.get(i-1)[0] + alpha * (input.get(i)[0] - output.get(i-1)[0]);
+                out[1] = output.get(i-1)[1] + alpha * (input.get(i)[1] - output.get(i-1)[1]);
+                out[2] = output.get(i-1)[2] + alpha * (input.get(i)[2] - output.get(i-1)[2]);
                 output.add(out);
             }
         }
@@ -304,12 +319,17 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
             //tv.setText(tmpOri[0]*57.2958 + ", " + tmpOri[1]*57.2958 + ", " + tmpOri[2]*57.2958);
             tv.setText(mPressureReading + "");
             stepDetectSensorList.add(stepDetectCount);
+            if (collectCounter == 100) {
+                tracking = false;
+            }
             if (tracking)
                 mHandler.postDelayed(collectData, 100);
             else {
                 stopSensoring();
                 mHandler.removeCallbacks(collectData);
             }
+            collectCounter++;
+
         }
     };
 
@@ -326,6 +346,7 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
         super.onPause();
 
         mGoogleApiClient.disconnect();
+        Wearable.MessageApi.removeListener(mGoogleApiClient, this);
         tracking = false;
         stopSensoring();
     }
@@ -334,6 +355,7 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
     protected void onResume() {
         super.onResume();
         mGoogleApiClient.connect();
+        Wearable.MessageApi.addListener(mGoogleApiClient, this);
     }
 
     @Override

@@ -18,13 +18,12 @@ import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ExpandableListView;
-import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Random;
 
+import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
 import luh.uni.hannover.hci.indoornavi.Utilities.ExpandableListAdapter;
 import luh.uni.hannover.hci.indoornavi.WifiUtilities.*;
 
@@ -211,24 +210,6 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
         dataList.add(data);
         listDataChild.put(fp.getLocation(), dataList);
 
-        mExpListAdapter.notifyDataSetChanged();
-    }
-
-    private void addFingerprintElementMock() {
-        WifiFingerprint fp = new WifiFingerprint("Start");
-        String mockAP = "H1X" + tmp;
-        int mockLevel = -10;
-        fp.addRSS(mockAP, mockLevel);
-        listDataHeader.add(mockAP);
-
-        Random rnd = new Random();
-        int mockCount = rnd.nextInt(20);
-        fp.setStepCount(mockCount);
-        String mockData = "AP: " + fp.getNumberOfAPs() + " Steps: " + fp.getStepCount();
-        List<String> mockList = new ArrayList<>();
-        mockList.add(mockData);
-        listDataChild.put(listDataHeader.get(tmp), mockList);
-        tmp = listDataHeader.size();
         mExpListAdapter.notifyDataSetChanged();
     }
 
