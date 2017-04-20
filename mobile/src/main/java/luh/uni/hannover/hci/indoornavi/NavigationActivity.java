@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import luh.uni.hannover.hci.indoornavi.Services.SensorService;
-import luh.uni.hannover.hci.indoornavi.Services.WatchService;
+import luh.uni.hannover.hci.indoornavi.Services.NavigationService;
 import luh.uni.hannover.hci.indoornavi.Services.WifiService;
 import luh.uni.hannover.hci.indoornavi.WifiUtilities.WifiCoordinator;
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
@@ -34,7 +34,7 @@ public class NavigationActivity extends AppCompatActivity {
         setContentView(R.layout.activity_navigation);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        wifiCoord = new WifiCoordinator();
+        setUpWifiCoordinator();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -46,7 +46,7 @@ public class NavigationActivity extends AppCompatActivity {
             }
         });
 
-        registerServices();
+        //registerServices();
     }
 
 
@@ -55,7 +55,7 @@ public class NavigationActivity extends AppCompatActivity {
         super.onPause();
         Intent i = new Intent(getApplicationContext(), SensorService.class);
         Intent i2 = new Intent(getApplicationContext(), WifiService.class);
-        Intent i3 = new Intent(getApplicationContext(), WatchService.class);
+        Intent i3 = new Intent(getApplicationContext(), NavigationService.class);
         stopService(i);
         stopService(i2);
         stopService(i3);
@@ -72,7 +72,7 @@ public class NavigationActivity extends AppCompatActivity {
     private void registerServices() {
         Intent i = new Intent(getApplicationContext(), SensorService.class);
         Intent i2 = new Intent(getApplicationContext(), WifiService.class);
-        Intent i3 = new Intent(getApplicationContext(), WatchService.class);
+        Intent i3 = new Intent(getApplicationContext(), NavigationService.class);
         startService(i);
         startService(i2);
         startService(i3);
@@ -82,25 +82,55 @@ public class NavigationActivity extends AppCompatActivity {
         LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, new IntentFilter("Watch"));
     }
 
+    private void setUpWifiCoordinator() {
+        wifiCoord = new WifiCoordinator();
+    }
+
     /**
      * Gets called whenever a step is detected, checks if the step results in an image change or
      * something else
      */
-    private void update() {
-
+    private void updateFromStep() {
+        setNextImage();
     }
+
+    /**
+     * Orders service to update the next image to sync with wearable
+     */
+    private void setNextImage() {
+        Intent i = new Intent("sendImage");
+        LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+    }
+
+    /**
+     * Gets called whenever a scan has been received, used to correct the current displayed image to
+     * appropriate fingerprint.
+     */
+    private void updateFromScan(Intent intent) {
+        wifiCoord.setUnknown(getUnknownFP(intent));
+
+        double dist = wifiCoord.getDistanceToNextFP(2); // replace this and the condition by whatever method we will use
+        if (dist < 20) {
+            int imageIndex = wifiCoord.reachedCheckpoint();
+            Intent i = new Intent("sendImage");
+            i.putExtra("stepCount", imageIndex);
+            LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+        }
+    }
+
 
     private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            update();
             switch (intent.getAction()) {
                 case "Step":
                     Log.d(TAG, "Step received");
+                    //updateFromStep();
                     return;
                 case "Scan":
-                    Log.d(TAG, "Scan received");
-                    wifiCoord.setUnknown(getUnknownFP(intent));
+                    //Log.d(TAG, "Scan received");
+                    //updateFromScan(intent);
+                    updateFromStep(); //for debugging purposes only
                     return;
                 case "Watch":
                     Log.d(TAG, "Watch received");

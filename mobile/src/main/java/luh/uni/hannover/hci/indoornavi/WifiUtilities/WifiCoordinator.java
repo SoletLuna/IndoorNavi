@@ -22,9 +22,14 @@ public class WifiCoordinator {
     private WifiFingerprint nextLoc;
     private WifiFingerprint unknownLoc;
     private WifiFingerprint lastLoc;
+    private int locationIndex = 1;
+    private int stepCount = 0; // internal step count, supplied by step count between all fingerprints
 
     public WifiCoordinator() {
-
+        loadNavigationPathFromFile();
+//        lastLoc = navigationPath.get(0);
+//        nextLoc = navigationPath.get(1);
+//       targetLoc = navigationPath.get(navigationPath.size()-1);
     }
 
     public List<WifiFingerprint> getFingerprints() {
@@ -84,6 +89,23 @@ public class WifiCoordinator {
         return dist;
     }
 
+    public double getDistanceToNextFP(int mode) {
+        WifiFingerprint fp1 = unknownLoc;
+        WifiFingerprint fp2 = nextLoc;
+        double dist = 0.0;
+        for (String key : fp1.getWifiMap().keySet()) {
+            int level1 = fp1.getWifiMap().get(key).get(0);
+            if (fp2.getWifiMap().containsKey(key)) {
+                int level2 = fp2.getWifiMap().get(key).get(0);
+                dist += Math.pow(level1 - level2, mode);
+            } else {
+                // optional error, add -100 if it helps
+            }
+        }
+        Math.pow(dist, 1/mode);
+        return dist;
+    }
+
     public double getSimilarityBetweenFP(WifiFingerprint fp1, WifiFingerprint fp2) {
         double sim = 0.0;
 
@@ -102,6 +124,19 @@ public class WifiCoordinator {
     public List<WifiFingerprint> selectNavigationPath() {
         //Display possible NavigationPaths and select one
         return navigationPath;
+    }
+
+    // whenever the next fingerprint is reached, updates last and next location.
+    public int reachedCheckpoint() {
+        if (nextLoc.getLocation().equals(targetLoc.getLocation())) {
+            // goal reached
+        }
+        locationIndex++;
+        stepCount = stepCount + nextLoc.getStepCount();
+        lastLoc = nextLoc;
+        nextLoc = navigationPath.get(locationIndex);
+
+        return stepCount;
     }
 
     private void loadNavigationPathFromFile() {

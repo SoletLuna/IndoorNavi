@@ -40,7 +40,7 @@
             android:theme="@style/AppTheme.NoActionBar"></activity>
         <service android:name=".Services.SensorService"></service>
         <service android:name=".Services.WifiService"></service>
-        <service android:name=".Services.WatchService"></service>
+        <service android:name=".Services.NavigationService"></service>
     </application>
 
 </manifest>

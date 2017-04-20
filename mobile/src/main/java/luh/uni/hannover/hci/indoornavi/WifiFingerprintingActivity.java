@@ -83,8 +83,6 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
                     }
                 });
                 builder.show();
-                /*mHandler = new Handler();
-                mHandler.post(startScanning);*/
             }
         });
 
@@ -183,20 +181,6 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
             }
         }
     }
-
-/*    private Runnable startScanning = new Runnable() {
-        @Override
-        public void run() {
-            mWifiManager.startScan();
-            Log.d("WIFI", "started scan");
-            if (numberOfScansStarted == scansToDo) {
-                mHandler.removeCallbacks(startScanning);
-            } else {
-                mHandler.postDelayed(startScanning, SCAN_DELAY);
-                numberOfScansStarted++;
-            }
-        }
-    };*/
 
     private void fillListView() {
         listDataHeader = new ArrayList<>();

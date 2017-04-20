@@ -63,8 +63,9 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
                 mTextView = (TextView) stub.findViewById(R.id.text);
                 mTextView.setVisibility(View.GONE);
                 mImageView = (ImageView) stub.findViewById(R.id.imgView);
-                mImageView.setVisibility(View.GONE);
+                mImageView.setVisibility(View.VISIBLE);
                 mTButton = (ToggleButton) findViewById(R.id.sensoring_TButton);
+                mTButton.setVisibility(View.GONE);
                 mTButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                     @Override
                     public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -89,7 +90,7 @@ public class WatchActivity extends Activity implements GoogleApiClient.Connectio
                 .build();
         mGoogleApiClient.connect();
 
-        retrieveDeviceNode();
+        //retrieveDeviceNode();
     }
 
     private void retrieveDeviceNode() {
