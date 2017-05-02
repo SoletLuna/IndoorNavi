@@ -185,15 +185,15 @@ public class SensorActivity extends AppCompatActivity implements SensorEventList
     }
 
     private void saveSensorData() {
-        saveDataArray(lowPassArray(accelSensorList), "accel" + trackCount + ".txt");
-        saveDataArray(lowPassArray(linAccelSensorList), "linAccel" + trackCount + ".txt");
-        saveDataArray(lowPassArray(orientSensorList), "ori" + trackCount + ".txt");
-        saveDataPoints(lowPass(accelMagSensorList), "accelMag" + trackCount + ".txt");
-        saveDataPoints(lowPass(linMagSensorList), "linAccelMag" + trackCount + ".txt");
+        saveDataArray((accelSensorList), "accel" + trackCount + ".txt");
+        saveDataArray((linAccelSensorList), "linAccel" + trackCount + ".txt");
+        saveDataArray((orientSensorList), "ori" + trackCount + ".txt");
+        saveDataPoints((accelMagSensorList), "accelMag" + trackCount + ".txt");
+        saveDataPoints((linMagSensorList), "linAccelMag" + trackCount + ".txt");
         List<Integer> stepList = fitData(stepDetectSensorList);
         saveDataPoints(stepList, "stepDetectFit" + trackCount + ".txt");
         saveDataPoints(stepDetectSensorList, "stepDetect" + trackCount + ".txt");
-        saveDataPoints(lowPass(pressureSensorList), "pressure" + trackCount + ".txt");
+        saveDataPoints((pressureSensorList), "pressure" + trackCount + ".txt");
 
         clearSensorData();
     }

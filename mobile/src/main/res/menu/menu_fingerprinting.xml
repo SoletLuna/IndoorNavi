@@ -1,0 +1,12 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="luh.uni.hannover.hci.indoornavi.WifiFingerprintingActivity">
+
+    <item
+        android:id="@+id/save_fingerprints"
+        android:orderInCategory="100"
+        android:title="@string/save_fingerprints"
+        app:showAsAction="never" />
+
+</menu>

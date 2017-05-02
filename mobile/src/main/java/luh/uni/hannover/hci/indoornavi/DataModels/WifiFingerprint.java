@@ -3,6 +3,9 @@ package luh.uni.hannover.hci.indoornavi.DataModels;
 import android.text.TextUtils;
 import android.view.TextureView;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -60,6 +63,16 @@ public class WifiFingerprint {
             sb.append(System.lineSeparator());
         }
         return sb.toString();
+    }
+
+    public JSONObject toJSON() throws JSONException {
+        JSONObject json = new JSONObject(wifiMap);
+        JSONObject json2 = new JSONObject();
+        json2.put("location", loc);
+        json2.put("stepCount", stepToFP);
+        //json2.put("position", "" + xyz.x + "," + xyz.y + "," + xyz.z);
+        json2.put("bssid", json);
+        return json2;
     }
 
 }

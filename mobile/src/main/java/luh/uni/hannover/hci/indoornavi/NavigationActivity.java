@@ -4,7 +4,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.content.LocalBroadcastManager;
@@ -13,20 +17,35 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.wearable.Asset;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.PutDataMapRequest;
+import com.google.android.gms.wearable.PutDataRequest;
+import com.google.android.gms.wearable.Wearable;
+
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import luh.uni.hannover.hci.indoornavi.Services.DataLayerPhoneService;
 import luh.uni.hannover.hci.indoornavi.Services.SensorService;
-import luh.uni.hannover.hci.indoornavi.Services.NavigationService;
 import luh.uni.hannover.hci.indoornavi.Services.WifiService;
 import luh.uni.hannover.hci.indoornavi.WifiUtilities.WifiCoordinator;
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
 
-public class NavigationActivity extends AppCompatActivity {
+public class NavigationActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
     private WifiCoordinator wifiCoord;
     private List<WifiFingerprint> navigationPath;
     private String TAG = "Navigation";
+    private boolean isNavRunning = false;
+
+    private String imagePath = "/storage/emulated/0/WiFiApp/ImagePaths/";
+    private int imageIndex = 1;
+    GoogleApiClient mGoogleApiClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,7 +65,7 @@ public class NavigationActivity extends AppCompatActivity {
             }
         });
 
-        //registerServices();
+        setUpGoogleApi();
     }
 
 
@@ -55,10 +74,15 @@ public class NavigationActivity extends AppCompatActivity {
         super.onPause();
         Intent i = new Intent(getApplicationContext(), SensorService.class);
         Intent i2 = new Intent(getApplicationContext(), WifiService.class);
-        Intent i3 = new Intent(getApplicationContext(), NavigationService.class);
+        Intent i3 = new Intent(getApplicationContext(), DataLayerPhoneService.class);
         stopService(i);
         stopService(i2);
         stopService(i3);
+
+        if (mGoogleApiClient.isConnected()) {
+            mGoogleApiClient.disconnect();
+        }
+        Log.d(TAG,"GoogleApi unregistered");
 
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mMessageReceiver);
     }
@@ -67,12 +91,31 @@ public class NavigationActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         registerServices();
+        if (!mGoogleApiClient.isConnected()) {
+            mGoogleApiClient.connect();
+        }
+        Log.d(TAG,"GoogleApi Registered");
+    }
+
+    private void setUpGoogleApi() {
+        if (null == mGoogleApiClient) {
+            mGoogleApiClient = new GoogleApiClient.Builder(this)
+                    .addApi(Wearable.API)
+                    .addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
+                    .build();
+            Log.d(TAG, "GoogleApiClient created");
+        }
+
+        if (!mGoogleApiClient.isConnected()) {
+            mGoogleApiClient.connect();
+        }
     }
 
     private void registerServices() {
         Intent i = new Intent(getApplicationContext(), SensorService.class);
         Intent i2 = new Intent(getApplicationContext(), WifiService.class);
-        Intent i3 = new Intent(getApplicationContext(), NavigationService.class);
+        Intent i3 = new Intent(getApplicationContext(), DataLayerPhoneService.class);
         startService(i);
         startService(i2);
         startService(i3);
@@ -97,9 +140,10 @@ public class NavigationActivity extends AppCompatActivity {
     /**
      * Orders service to update the next image to sync with wearable
      */
-    private void setNextImage() {
+    private void setNextImage() {/*
         Intent i = new Intent("sendImage");
-        LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+        LocalBroadcastManager.getInstance(this).sendBroadcast(i);*/
+        sendImage();
     }
 
     /**
@@ -111,10 +155,10 @@ public class NavigationActivity extends AppCompatActivity {
 
         double dist = wifiCoord.getDistanceToNextFP(2); // replace this and the condition by whatever method we will use
         if (dist < 20) {
-            int imageIndex = wifiCoord.reachedCheckpoint();
+            imageIndex = wifiCoord.reachedCheckpoint();/*
             Intent i = new Intent("sendImage");
             i.putExtra("stepCount", imageIndex);
-            LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+            LocalBroadcastManager.getInstance(this).sendBroadcast(i);*/
         }
     }
 
@@ -125,12 +169,12 @@ public class NavigationActivity extends AppCompatActivity {
             switch (intent.getAction()) {
                 case "Step":
                     Log.d(TAG, "Step received");
-                    //updateFromStep();
+                    updateFromStep();
                     return;
                 case "Scan":
-                    //Log.d(TAG, "Scan received");
+                        Log.d(TAG, "Scan received");
                     //updateFromScan(intent);
-                    updateFromStep(); //for debugging purposes only
+                    //updateFromStep(); //for debugging purposes only
                     return;
                 case "Watch":
                     Log.d(TAG, "Watch received");
@@ -152,10 +196,46 @@ public class NavigationActivity extends AppCompatActivity {
         return currentFP;
     }
 
+    private void sendImage() {
+        String filePath = imagePath + "img" + imageIndex + ".jpg";
+        Bitmap myBitmap = BitmapFactory.decodeFile(filePath);
+        Asset img = createAssetFromBitmap(myBitmap);
+
+        PutDataMapRequest dataMap = PutDataMapRequest.create("/img");
+        dataMap.getDataMap().putAsset("navImage", img);
+        dataMap.setUrgent();
+        PutDataRequest request = dataMap.asPutDataRequest();
+        PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi
+                .putDataItem(mGoogleApiClient, request);
+
+        imageIndex = (imageIndex + 1) % 30 + 1;
+    }
+
+    private static Asset createAssetFromBitmap(Bitmap bitmap) {
+        final ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteStream);
+        return Asset.createFromBytes(byteStream.toByteArray());
+    }
+
     private void startNavigation() {
+        //registerServices();
+        //isNavRunning = true;
         navigationPath = wifiCoord.selectNavigationPath();
     }
 
 
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        Log.d(TAG, "GoogleApiClient connected");
+    }
 
+    @Override
+    public void onConnectionSuspended(int i) {
+        Log.d(TAG, "GoogleApiClient connection suspended");
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        Log.d(TAG, "GoogleApiClient connection failed");
+    }
 }

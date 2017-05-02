@@ -7,4 +7,5 @@
     <string name="title_activity_fingerprinting">FingerprintingActivity</string>
     <string name="open_fingerprinting">Open Fingerprinting</string>
     <string name="title_activity_navigation">NavigationActivity</string>
+    <string name="save_fingerprints">Save Fingerprints</string>
 </resources>

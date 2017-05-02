@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AlertDialog;
@@ -15,10 +16,17 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.InputType;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ExpandableListView;
 
+import org.json.JSONException;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +59,8 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
     private Handler mHandler;
     private String currentLocation;
     private final long SCAN_DELAY = 2000;
+
+    private String TAG = "WifiFingerprinting";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -203,5 +213,78 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
         mExpListAdapter.notifyDataSetChanged();
     }
 
+    private void saveFingerprintsToFile() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(WifiFingerprintingActivity.this);
+        builder.setTitle("Enter Navigation Path Name");
+        final EditText input = new EditText(WifiFingerprintingActivity.this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT);
+        builder.setView(input);
+        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                String name = input.getText().toString();
+                saveFingerprints(name);
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                dialogInterface.cancel();
+            }
+        });
+        builder.show();
+    }
 
+    private void saveFingerprints(String name) {
+        StringBuilder sb = new StringBuilder();
+        List<WifiFingerprint> fingerprints = wifiCoord.getFingerprints();
+        for (int i=0; i < fingerprints.size(); i++) {
+            try {
+                sb.append(fingerprints.get(i).toJSON().toString());
+                sb.append(System.getProperty("line.separator"));
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            Log.d(TAG, sb.toString());
+        }
+
+        File root = new File(Environment.getExternalStorageDirectory(),"IndoorNavigation");
+
+        if (!root.mkdirs()) {
+            Log.e(TAG, "Directory not created");
+        }
+
+        try {
+            File myFile = new File(root, name);
+            FileOutputStream fos = new FileOutputStream(myFile);
+            fos.write(sb.toString().getBytes());
+            fos.close();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_fingerprinting, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+
+
+        switch (id) {
+            case R.id.save_fingerprints:
+                saveFingerprintsToFile();
+                return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
 }

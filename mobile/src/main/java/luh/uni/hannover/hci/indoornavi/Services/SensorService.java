@@ -13,6 +13,8 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
 import luh.uni.hannover.hci.indoornavi.Utilities.SensorCoordinator;
@@ -30,34 +32,67 @@ public class SensorService extends Service implements SensorEventListener {
     private Sensor accelSensor;
     private Sensor magSensor;
     private String TAG = "SensorService";
-    private SensorCoordinator mSensorCoordinator;
-
-    private Handler mHandler;
-
-    private static long PEAK_WINDOW_SIZE = 450;
-    private static long MOVING_WINDOW_SIZE = 390;
-    private static float ALPHA = 0.25f;
-    private static float PEAK_THRESHOLD = 11.0f;
 
     private float[] mAccelerometerReading = new float[3];
-    private List<SensorData> magnitudeAccelReadingList = new ArrayList<>();
-    private List<SensorData> smoothedMagnitudeList = new ArrayList<>();
-    private int lastStepIndex = 0;
+
+    // Step Detection Robust Dynamics
+    private LinkedList<Double> magnitudeList = new LinkedList<>();
+    private LinkedList<TypeData> typeList = new LinkedList<>();
+    private int magnitudeIndex = 0;
+    private int stepsDetected = 0;
+
+    private double stepAverage = 9.8;
+    private double peakMag = 0;
+    private double valleyMag = 0;
+    private double stepDeviation = 0;
+    // Last K samples taken into account
+    private int K = 25;
+    // Last M peak/valley pairs taken into account
+    private int M = 10;
+    // magnitude constant
+    private double alpha = 4;
+    // time scale constant
+    private double beta = 1 / 3;
+    private double averagePeakTime = 0;
+    private double averageValleyTime = 0;
+    private double peakTimeDeviation = 0;
+    private double valleyTimeDeviation = 0;
+    private double lastPeakTime = 0;
+    private double lastValleyTime = 0;
+    private double adaptivePeakThreshold = 0;
+    private double adaptiveValleyThreshold = 0;
+    private double lastPeakMagnitude = 0;
+    private double lastValleyMagnitude = 0;
+
+    // From here to the old step detector
+    private ArrayList<SensorData> accelMagnitudeList = new ArrayList<>();
+    private ArrayList<SensorData> accelMovWindow = new ArrayList<>();
+
+    // threshold for walk detection
+    private static double MAGNITUDE_THRESHOLD = 10.5;
+    // in nanoseconds
+    private static double WALKING_THRESHOLD_SIZE = 500000000;
+    private static double MOVING_AVERAGE_SIZE = 310000000;
+    private static double WINDOW_PEAK_SIZE = 590000000;
+
+    long curWalkTimeStamp;
+    long curMovTimeStamp;
+    double stepTime = 0;
+    int count = 0;
 
     @Override
     public void onCreate() {
         mSensorManager = (SensorManager) getApplicationContext().getSystemService(SENSOR_SERVICE);
         accelSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         magSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-        mSensorCoordinator = new SensorCoordinator();
-        mHandler = new Handler();
+        typeList.add(new TypeData("init", 0));
     }
 
     @Override
     public int onStartCommand(Intent i, int flags, int startId) {
 
-        mSensorManager.registerListener(this, accelSensor, SensorManager.SENSOR_DELAY_FASTEST);
-        mSensorManager.registerListener(this, magSensor, SensorManager.SENSOR_DELAY_FASTEST);
+        mSensorManager.registerListener(this, accelSensor, 20000);
+        // mSensorManager.registerListener(this, magSensor, SensorManager.SENSOR_DELAY_FASTEST);
         Log.d(TAG, "Registered");
         return START_STICKY;
     }
@@ -65,7 +100,7 @@ public class SensorService extends Service implements SensorEventListener {
     @Override
     public void onDestroy() {
         mSensorManager.unregisterListener(this, accelSensor);
-        mSensorManager.unregisterListener(this, magSensor);
+        //  mSensorManager.unregisterListener(this, magSensor);
         Log.d(TAG, "Unregistered");
     }
 
@@ -74,83 +109,224 @@ public class SensorService extends Service implements SensorEventListener {
         if (sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             System.arraycopy(sensorEvent.values, 0, mAccelerometerReading,
                     0, mAccelerometerReading.length);
-            float magnitude = (float) Math.sqrt(mAccelerometerReading[0] * mAccelerometerReading[0] + mAccelerometerReading[1] * mAccelerometerReading[1] + mAccelerometerReading[2] * mAccelerometerReading[2]);
-            magnitudeAccelReadingList.add(new SensorData(magnitude, sensorEvent.timestamp));
-           // addSmoothedValue();
-           // boolean step = detectStep(smoothedMagnitudeList);
-           // onStep();
-        }
-    }
-
-    private void addSmoothedValue() {
-        SensorData first = magnitudeAccelReadingList.get(0);
-        SensorData last = magnitudeAccelReadingList.get(magnitudeAccelReadingList.size()-1);
-        if ( (last.time - first.time) < 310000000) {
-            return;
-        } else {
-            double average = 0.0f;
-            int amount = 0;
-            for (int i=magnitudeAccelReadingList.size()-1; i >= 0; i++) {
-                if ( (last.time - magnitudeAccelReadingList.get(i).time) < 310000000) {
-                    double value = magnitudeAccelReadingList.get(i).value;
-                    average += value;
-                    amount++;
-                } else {
-                    average /= amount;
-                    SensorData data = new SensorData(average, last.time);
-                    smoothedMagnitudeList.add(data);
-                    return;
+            double magnitude = Math.sqrt(mAccelerometerReading[0] * mAccelerometerReading[0] + mAccelerometerReading[1] * mAccelerometerReading[1] + mAccelerometerReading[2] * mAccelerometerReading[2]);
+            magnitudeList.add(magnitude);
+            magnitudeIndex++;
+            // 0 = an+1, 1 = an, 2 = an-1
+            if (!(magnitudeList.size() < 3)) {
+                if (magnitudeList.size() >= K) {
+                    magnitudeList.removeFirst();
                 }
+                int magSize = magnitudeList.size();
+                Double[] mags = new Double[3];
+                mags[0] = magnitudeList.getLast();
+                mags[1] = magnitudeList.get(magnitudeList.size()-2);
+                mags[2] = magnitudeList.get(magnitudeList.size()-3);
+                // oldStepDetector(sensorEvent);
+                adaptiveStepDetector(mags);
             }
         }
     }
 
-    // uses a peak detection using thresholds for peak and valley
-    private boolean detectStep(List<SensorData> list) {
-        long currentTime = list.get(list.size()-1).time;
-        double max = 0.0;
-        double min = 50;
-        boolean peak = false;
-        boolean valley = false;
-        boolean flag = false;
-        for (int i=0; i < list.size()-1; i++) {
-            double current = list.get(i).value;
-            if ((currentTime - list.get(i).time) > 500000000) {
-                continue;
+    /**
+     * Step deviation fehlt noch
+     * @param mags
+     */
+    private void adaptiveStepDetector(Double[] mags) {
+        String candidate = detectCandidate(mags);
+        Log.d(TAG, candidate);
+        String type = "inter";
+        String lastType = typeList.getLast().type;
+        if (candidate.equals("peak")) {
+            if (lastType.equals("init")) {
+                type = "peak";
+                typeList.add(new TypeData(type, magnitudeIndex-1));
+                updatePeak(mags[1], magnitudeIndex - 1);
+            } else if (lastType.equals("valley") && (magnitudeIndex - 1 - lastPeakTime) > adaptivePeakThreshold) {
+                type = "peak";
+                typeList.add(new TypeData(type, magnitudeIndex-1));
+                updatePeak(mags[1], magnitudeIndex - 1);
+                //stepAverage = (lastPeakMagnitude - lastValleyMagnitude) / 2;
+            } else if (lastType.equals("peak") && (magnitudeIndex - 1 - lastPeakTime) < adaptiveValleyThreshold
+                    && mags[1] > lastPeakMagnitude) {
+                typeList.add(new TypeData(type, magnitudeIndex-1));
+                updateValley(mags[1], magnitudeIndex - 1);
+
+            }
+        } else if (candidate.equals("valley")) {
+            if (lastType.equals("peak") && (magnitudeIndex - 1 - lastValleyTime) > adaptiveValleyThreshold) {
+                type = "valley";
+                typeList.add(new TypeData(type, magnitudeIndex-1));
+                updateValley(mags[1], magnitudeIndex-1);
+                stepsDetected++;
+                onStep();
+                //stepAverage = (lastPeakMagnitude - lastValleyMagnitude) / 2;
+            } else if (lastType.equals("valley") && (magnitudeIndex - 1 - lastValleyTime) < adaptiveValleyThreshold
+                    && mags[1] < lastValleyMagnitude) {
+                typeList.add(new TypeData(type, magnitudeIndex-1));
+                updateValley(mags[1], magnitudeIndex - 1);
+            }
+        }
+    }
+
+    private String detectCandidate(Double[] mags) {
+        if (magnitudeList.size() < 3) {
+            return "inter";
+        }
+
+        double previous = mags[2];
+        double current = mags[1];
+        double next = mags[0];
+        double stepThresholdPeak = stepAverage + (stepDeviation / alpha);
+        if (current > Math.max(Math.max(previous, next), stepThresholdPeak)) {
+            return "peak";
+        }
+        double stepThresholdValley = stepAverage - (stepDeviation / alpha);
+        if (current < Math.min(Math.min(previous, next), stepThresholdValley)) {
+            return "valley";
+        }
+
+        return "inter";
+    }
+
+    private void updatePeak(double mag, int n) {
+        lastPeakTime = n;
+        lastPeakMagnitude = mag;
+        int peakCount = 0;
+        List<Integer> timeList = new ArrayList<>();
+
+        //find all peaks with respective time
+        for (int i=typeList.size()-1; i >= 0; i--) {
+            if (peakCount < 10) {
+                String type = typeList.get(i).type;
+                if (type.equals("peak")) {
+                    timeList.add(typeList.get(i).n);
+                    peakCount++;
+                }
             } else {
-                if (!peak && !valley) {
-                    max = current;
-                    peak = true;
-                } else if (peak) {
-                    if (current > max) {
-                        max = current;
-                    } else if (max > 11) {
-                        if (flag) {
-                            return true;
-                        } else {
-                            flag = true;
-                            peak = false;
-                            valley = true;
-                            min = current;
-                        }
-                    }
-                } else if (valley) {
-                    if (current < min) {
-                        min = current;
-                    } else if (min < 10) {
-                        if( flag) {
-                            return true;
-                        } else {
-                            flag = true;
-                            valley = false;
-                            peak = true;
-                            max = current;
-                        }
-                    }
-                }
+                break;
             }
         }
-        return false;
+        int sum = 0;
+        for (int i=0; i < timeList.size()-1; i++) {
+            sum += timeList.get(i);
+        }
+        averagePeakTime = sum / timeList.size();
+
+        int sumSD = 0;
+        for (int i=0; i < timeList.size()-1; i++) {
+            sumSD += Math.pow(timeList.get(i) - averagePeakTime,2);
+        }
+        peakTimeDeviation = Math.sqrt(sumSD/timeList.size());
+    }
+
+    private void updateValley(double mag, int n) {
+        lastPeakTime = n;
+        lastPeakMagnitude = mag;
+        int valleyCount = 0;
+        List<Integer> timeList = new ArrayList<>();
+
+        //find all peaks with respective time
+        for (int i=typeList.size()-1; i >= 0; i--) {
+            if (valleyCount < M) {
+                String type = typeList.get(i).type;
+                if (type.equals("peak")) {
+                    timeList.add(typeList.get(i).n);
+                    valleyCount++;
+                }
+            } else {
+                break;
+            }
+        }
+        int sum = 0;
+        for (int i=0; i < timeList.size()-1; i++) {
+            sum += timeList.get(i);
+        }
+        averageValleyTime = sum / timeList.size();
+
+        int sumSD = 0;
+        for (int i=0; i < timeList.size()-1; i++) {
+            sumSD += Math.pow(timeList.get(i) - averageValleyTime,2);
+        }
+        valleyTimeDeviation = Math.sqrt(sumSD/timeList.size());
+
+    }
+
+    private void oldStepDetector(SensorEvent sensorEvent) {
+        float x = sensorEvent.values[0];
+        float y = sensorEvent.values[1];
+        float z = sensorEvent.values[2];
+        double magnitude = Math.sqrt(x * x + y * y + z * z);
+        accelMagnitudeList.add(new SensorData(magnitude, sensorEvent.timestamp));
+        //Log.e("ACCEL", x + "-" + y + "-" + z);
+        // walking detection using magnitude threshold
+        if (magnitude > MAGNITUDE_THRESHOLD) {
+            //walking = true;
+            curWalkTimeStamp = sensorEvent.timestamp;
+        } else {
+            if ((sensorEvent.timestamp - curWalkTimeStamp) > WALKING_THRESHOLD_SIZE) {
+                // walking = false;
+            }
+        }
+
+        // moving average, counting downwards
+        curMovTimeStamp = sensorEvent.timestamp;
+        int winCount = 0;
+        double avgMag = 0.0;
+        for (int i = accelMagnitudeList.size() - 1; i >= 0; i--) {
+            long time = accelMagnitudeList.get(i).time;
+            double mag = accelMagnitudeList.get(i).value;
+            if ((curMovTimeStamp - time) < MOVING_AVERAGE_SIZE) {
+                winCount++;
+                avgMag += mag;
+                // Log.e("BLA", winCount +"");
+            } else {
+                break;
+            }
+        }
+        if (winCount > 0) {
+            avgMag = avgMag / winCount;
+            accelMovWindow.add(new SensorData(avgMag, curMovTimeStamp));
+            //Log.e("Window", avgMag +"");
+        }
+
+        //detect peak in moving average
+        double max = 0;
+        double min = 100;
+        boolean isPeak = false;
+        boolean isStep = false;
+        for (int i = accelMovWindow.size() - 1; i >= 0; i--) {
+            if (curMovTimeStamp - stepTime < WINDOW_PEAK_SIZE) {
+                break;
+            }
+            long time = accelMovWindow.get(i).time;
+            double mag = accelMovWindow.get(i).value;
+            if ((curMovTimeStamp - time) < WINDOW_PEAK_SIZE) {
+                if (!isPeak) {
+                    if (mag > max) {
+                        max = mag;
+                    } else if (mag < max) {
+                        if (max > MAGNITUDE_THRESHOLD)
+                            isPeak = true;
+                    }
+                } else {
+                    if (mag < min) {
+                        min = mag;
+                    } else if (mag > min) {
+                        if (min < MAGNITUDE_THRESHOLD)
+                            isStep = true;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+        if (isStep && curMovTimeStamp - stepTime > WINDOW_PEAK_SIZE) {
+            count++;
+            stepTime = sensorEvent.timestamp;
+            onStep();
+        }
+
     }
 
     public class SensorData {
@@ -161,6 +337,16 @@ public class SensorService extends Service implements SensorEventListener {
         public SensorData(double value, long time) {
             this.value = value;
             this.time = time;
+        }
+    }
+
+    public class TypeData {
+        String type;
+        int n;
+
+        public TypeData(String type, int n){
+            this.type = type;
+            this.n = n;
         }
     }
 
