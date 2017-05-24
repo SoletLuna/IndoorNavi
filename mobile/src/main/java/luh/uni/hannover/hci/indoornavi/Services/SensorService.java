@@ -37,6 +37,7 @@ public class SensorService extends Service implements SensorEventListener {
 
     // Step Detection Robust Dynamics
     private LinkedList<Double> magnitudeList = new LinkedList<>();
+    private LinkedList<Double> kSampleList = new LinkedList<>();
     private LinkedList<TypeData> typeList = new LinkedList<>();
     private int magnitudeIndex = 0;
     private int stepsDetected = 0;
@@ -47,12 +48,12 @@ public class SensorService extends Service implements SensorEventListener {
     private double stepDeviation = 0;
     // Last K samples taken into account
     private int K = 25;
-    // Last M peak/valley pairs taken into account
+    // Last M peak/valley taken into account
     private int M = 10;
     // magnitude constant
     private double alpha = 4;
     // time scale constant
-    private double beta = 1 / 3;
+    private double beta = 0.33;
     private double averagePeakTime = 0;
     private double averageValleyTime = 0;
     private double peakTimeDeviation = 0;
@@ -84,14 +85,14 @@ public class SensorService extends Service implements SensorEventListener {
     public void onCreate() {
         mSensorManager = (SensorManager) getApplicationContext().getSystemService(SENSOR_SERVICE);
         accelSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        magSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        //magSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
         typeList.add(new TypeData("init", 0));
     }
 
     @Override
     public int onStartCommand(Intent i, int flags, int startId) {
 
-        mSensorManager.registerListener(this, accelSensor, 20000);
+        mSensorManager.registerListener(this, accelSensor, SensorManager.SENSOR_DELAY_NORMAL);
         // mSensorManager.registerListener(this, magSensor, SensorManager.SENSOR_DELAY_FASTEST);
         Log.d(TAG, "Registered");
         return START_STICKY;
@@ -107,11 +108,12 @@ public class SensorService extends Service implements SensorEventListener {
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
         if (sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            Log.d(TAG, "Hallo");
             System.arraycopy(sensorEvent.values, 0, mAccelerometerReading,
                     0, mAccelerometerReading.length);
             double magnitude = Math.sqrt(mAccelerometerReading[0] * mAccelerometerReading[0] + mAccelerometerReading[1] * mAccelerometerReading[1] + mAccelerometerReading[2] * mAccelerometerReading[2]);
             magnitudeList.add(magnitude);
-            magnitudeIndex++;
+            calculateStepDeviation(magnitude);
             // 0 = an+1, 1 = an, 2 = an-1
             if (!(magnitudeList.size() < 3)) {
                 if (magnitudeList.size() >= K) {
@@ -120,73 +122,76 @@ public class SensorService extends Service implements SensorEventListener {
                 int magSize = magnitudeList.size();
                 Double[] mags = new Double[3];
                 mags[0] = magnitudeList.getLast();
-                mags[1] = magnitudeList.get(magnitudeList.size()-2);
-                mags[2] = magnitudeList.get(magnitudeList.size()-3);
+                mags[1] = magnitudeList.get(magnitudeList.size() - 2);
+                mags[2] = magnitudeList.get(magnitudeList.size() - 3);
                 // oldStepDetector(sensorEvent);
-                adaptiveStepDetector(mags);
+                // adaptiveStepDetector(mags);
+                stepDetect(mags);
             }
+            magnitudeIndex++;
         }
     }
-
-    /**
-     * Step deviation fehlt noch
-     * @param mags
-     */
-    private void adaptiveStepDetector(Double[] mags) {
-        String candidate = detectCandidate(mags);
-        Log.d(TAG, candidate);
-        String type = "inter";
-        String lastType = typeList.getLast().type;
-        if (candidate.equals("peak")) {
-            if (lastType.equals("init")) {
-                type = "peak";
-                typeList.add(new TypeData(type, magnitudeIndex-1));
-                updatePeak(mags[1], magnitudeIndex - 1);
-            } else if (lastType.equals("valley") && (magnitudeIndex - 1 - lastPeakTime) > adaptivePeakThreshold) {
-                type = "peak";
-                typeList.add(new TypeData(type, magnitudeIndex-1));
-                updatePeak(mags[1], magnitudeIndex - 1);
-                //stepAverage = (lastPeakMagnitude - lastValleyMagnitude) / 2;
-            } else if (lastType.equals("peak") && (magnitudeIndex - 1 - lastPeakTime) < adaptiveValleyThreshold
-                    && mags[1] > lastPeakMagnitude) {
-                typeList.add(new TypeData(type, magnitudeIndex-1));
-                updateValley(mags[1], magnitudeIndex - 1);
-
-            }
-        } else if (candidate.equals("valley")) {
-            if (lastType.equals("peak") && (magnitudeIndex - 1 - lastValleyTime) > adaptiveValleyThreshold) {
-                type = "valley";
-                typeList.add(new TypeData(type, magnitudeIndex-1));
-                updateValley(mags[1], magnitudeIndex-1);
-                stepsDetected++;
-                onStep();
-                //stepAverage = (lastPeakMagnitude - lastValleyMagnitude) / 2;
-            } else if (lastType.equals("valley") && (magnitudeIndex - 1 - lastValleyTime) < adaptiveValleyThreshold
-                    && mags[1] < lastValleyMagnitude) {
-                typeList.add(new TypeData(type, magnitudeIndex-1));
-                updateValley(mags[1], magnitudeIndex - 1);
-            }
-        }
-    }
-
-    private String detectCandidate(Double[] mags) {
-        if (magnitudeList.size() < 3) {
-            return "inter";
-        }
-
+    double upperThresh = 10.5;
+    double lowerThresh = 9.0;
+    // time is calculated by using samples (a sample is proportional to the frequency, e.g. a time of 5 samples = 5 * 100 ms for example = 500 ms)
+    private void stepDetect(Double[] mags) {
         double previous = mags[2];
         double current = mags[1];
         double next = mags[0];
-        double stepThresholdPeak = stepAverage + (stepDeviation / alpha);
-        if (current > Math.max(Math.max(previous, next), stepThresholdPeak)) {
-            return "peak";
+        String candidate = getCandiate(mags);
+        String type = "Inter";
+        if (candidate == "Peak") {
+            if (current > upperThresh && (magnitudeIndex - lastPeakTime) > 25) {
+                type = "Peak";
+                if (typeList.getLast().type == "Valley") {
+                    stepsDetected++;
+                  //  Log.d(TAG, stepsDetected+"");
+                }
+                typeList.add(new TypeData(type, magnitudeIndex));
+                updatePeak(current, magnitudeIndex);
+            }
+        } else if (candidate == "Valley") {
+            if (current < lowerThresh) {
+                type = "Valley";
+                typeList.add(new TypeData(type, magnitudeIndex));
+                updateValley(current, magnitudeIndex);
+            }
         }
-        double stepThresholdValley = stepAverage - (stepDeviation / alpha);
-        if (current < Math.min(Math.min(previous, next), stepThresholdValley)) {
-            return "valley";
+        //Log.d(TAG, type + ", " + current + ", " + stepDeviation + ", " + averagePeakTime + ", " + averageValleyTime);
+    }
+
+    private String getCandiate(Double[] mags) {
+        double previous = mags[2];
+        double current = mags[1];
+        double next = mags[0];
+
+        if (current > Math.max(previous, next)) {
+            return "Peak";
+        } else if (current < Math.min(previous, next)) {
+            return "Valley";
+        }
+        return "Inter";
+    }
+
+    private void calculateStepDeviation(double mag) {
+        kSampleList.add(mag);
+        if (kSampleList.size() > K) {
+            kSampleList.removeFirst();
         }
 
-        return "inter";
+        double avg = 0;
+        for (int i=0; i < kSampleList.size(); i++) {
+            avg += kSampleList.get(i);
+        }
+        avg = avg/K;
+
+        double sumSD = 0;
+        for (int i=0; i < kSampleList.size(); i++) {
+            sumSD += Math.pow(kSampleList.get(i) - avg, 2);
+        }
+        sumSD = Math.sqrt(sumSD/K);
+        stepDeviation = sumSD;
+        //Log.d(TAG, ""+stepDeviation);
     }
 
     private void updatePeak(double mag, int n) {
@@ -194,12 +199,13 @@ public class SensorService extends Service implements SensorEventListener {
         lastPeakMagnitude = mag;
         int peakCount = 0;
         List<Integer> timeList = new ArrayList<>();
+        List<Integer> timeDiffList = new ArrayList<>();
 
         //find all peaks with respective time
-        for (int i=typeList.size()-1; i >= 0; i--) {
-            if (peakCount < 10) {
+        for (int i = typeList.size() - 1; i >= 0; i--) {
+            if (peakCount < M) {
                 String type = typeList.get(i).type;
-                if (type.equals("peak")) {
+                if (type.equals("Peak")) {
                     timeList.add(typeList.get(i).n);
                     peakCount++;
                 }
@@ -208,29 +214,42 @@ public class SensorService extends Service implements SensorEventListener {
             }
         }
         int sum = 0;
-        for (int i=0; i < timeList.size()-1; i++) {
-            sum += timeList.get(i);
+        for (int i = 0; i < timeList.size()-1; i++) {
+            if (timeList.size() == 1) {
+                sum = timeList.get(0);
+                timeDiffList.add(sum);
+            } else {
+                double element = Math.abs(timeList.get(i) - timeList.get(i + 1));
+                sum += element;
+                timeDiffList.add(Math.abs(timeList.get(i) - timeList.get(i + 1)));
+            }
         }
         averagePeakTime = sum / timeList.size();
+        double sumSD = 0;
 
-        int sumSD = 0;
-        for (int i=0; i < timeList.size()-1; i++) {
-            sumSD += Math.pow(timeList.get(i) - averagePeakTime,2);
+        for (int i = 0; i < timeDiffList.size(); i++) {
+            sumSD += Math.pow(timeDiffList.get(i) - averagePeakTime, 2);
         }
-        peakTimeDeviation = Math.sqrt(sumSD/timeList.size());
+        if (sumSD!= 0) {
+            peakTimeDeviation = Math.sqrt(sumSD / timeDiffList.size());
+        }
+        adaptivePeakThreshold = averagePeakTime - peakTimeDeviation*beta;
+       // Log.d(TAG, averagePeakTime + ", " + peakTimeDeviation + ", " + adaptivePeakThreshold);
+        //Log.d(TAG, timeDiffList.toString());
     }
 
     private void updateValley(double mag, int n) {
-        lastPeakTime = n;
-        lastPeakMagnitude = mag;
+        lastValleyTime = n;
+        lastValleyTime = mag;
         int valleyCount = 0;
         List<Integer> timeList = new ArrayList<>();
+        List<Integer> timeDiffList = new ArrayList<>();
 
-        //find all peaks with respective time
-        for (int i=typeList.size()-1; i >= 0; i--) {
+        //find all valley with respective time
+        for (int i = typeList.size() - 1; i >= 0; i--) {
             if (valleyCount < M) {
                 String type = typeList.get(i).type;
-                if (type.equals("peak")) {
+                if (type.equals("Valley")) {
                     timeList.add(typeList.get(i).n);
                     valleyCount++;
                 }
@@ -239,16 +258,28 @@ public class SensorService extends Service implements SensorEventListener {
             }
         }
         int sum = 0;
-        for (int i=0; i < timeList.size()-1; i++) {
-            sum += timeList.get(i);
+        for (int i = 0; i < timeList.size()-1; i++) {
+            if (timeList.size() == 1) {
+                sum = timeList.get(0);
+                timeDiffList.add(sum);
+            } else {
+                double element = Math.abs(timeList.get(i) - timeList.get(i + 1));
+                sum += element;
+                timeDiffList.add(Math.abs(timeList.get(i) - timeList.get(i + 1)));
+            }
         }
         averageValleyTime = sum / timeList.size();
 
-        int sumSD = 0;
-        for (int i=0; i < timeList.size()-1; i++) {
-            sumSD += Math.pow(timeList.get(i) - averageValleyTime,2);
+        double sumSD = 0;
+        for (int i = 0; i < timeDiffList.size(); i++) {
+            sumSD += Math.pow(timeDiffList.get(i) - averageValleyTime, 2);
         }
-        valleyTimeDeviation = Math.sqrt(sumSD/timeList.size());
+
+        if (sumSD != 0) {
+            valleyTimeDeviation = Math.sqrt(sumSD / timeDiffList.size());
+        }
+
+        adaptiveValleyThreshold = averageValleyTime - valleyTimeDeviation*beta;
 
     }
 
@@ -344,9 +375,13 @@ public class SensorService extends Service implements SensorEventListener {
         String type;
         int n;
 
-        public TypeData(String type, int n){
+        public TypeData(String type, int n) {
             this.type = type;
             this.n = n;
+        }
+
+        public String toString() {
+            return type + "," + n;
         }
     }
 

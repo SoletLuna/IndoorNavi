@@ -16,7 +16,7 @@ import java.util.List;
 
 public class WifiFingerprint {
 
-    private HashMap<String, List<Integer>> wifiMap = new HashMap<>();
+    private HashMap<String, List<Double>> wifiMap = new HashMap<>();
     private String loc = "";
     private int stepToFP;
 
@@ -24,15 +24,15 @@ public class WifiFingerprint {
         loc = ID;
     }
 
-    public HashMap<String, List<Integer>> getWifiMap() {
+    public HashMap<String, List<Double>> getWifiMap() {
         return wifiMap;
     }
 
-    public void addRSS(String bssid, int level) {
+    public void addRSS(String bssid, Double level) {
         if (wifiMap.containsKey(bssid)) {
             wifiMap.get(bssid).add(level);
         } else {
-            List<Integer> list = new ArrayList<>();
+            List<Double> list = new ArrayList<>();
             list.add(level);
             wifiMap.put(bssid, list);
         }
