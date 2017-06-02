@@ -16,6 +16,8 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.List;
 
+import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
+
 /**
  * Created by solet on 11/04/2017.
  */
@@ -62,17 +64,18 @@ public class WifiService extends Service {
         public void onReceive(Context context, Intent intent) {
             List<ScanResult> scans = mWifiManager.getScanResults();
             ArrayList<String> bssidList = new ArrayList<>();
-            ArrayList<Integer> rssList = new ArrayList<>();
-            for (int i=0; i < scans.size(); i++) {
-                bssidList.add(scans.get(i).BSSID);
-                rssList.add(scans.get(i).level);
+            ArrayList<Double> rssList = new ArrayList<>();
+            for(ScanResult scan : scans) {
+                String bssid = scan.BSSID;
+                double level = scan.level;
+                bssidList.add(bssid);
+                rssList.add(level);
             }
-
             Intent i = new Intent("Scan");
             Bundle data = new Bundle();
             data.putStringArrayList("BSSID", bssidList);
-            data.putIntegerArrayList("RSS", rssList);
             i.putExtras(data);
+            i.putExtra("RSS", rssList);
             LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(i);
             mWifiManager.startScan();
         }

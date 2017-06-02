@@ -25,4 +25,10 @@
         android:orderInCategory="100"
         android:title="@string/open_navigation"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/open_particle"
+        android:orderInCategory="100"
+        android:title="@string/open_particle"
+        app:showAsAction="never" />
 </menu>

@@ -22,6 +22,8 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.ExpandableListView;
 
+import com.google.gson.Gson;
+
 import org.json.JSONException;
 
 import java.io.File;
@@ -32,8 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
-import luh.uni.hannover.hci.indoornavi.Utilities.ExpandableListAdapter;
-import luh.uni.hannover.hci.indoornavi.WifiUtilities.*;
+import luh.uni.hannover.hci.indoornavi.Utilities.*;
 
 /**
  * Activity for registering fingerprints. Multiple ways of filtering/Saving scanned fingerprints are
@@ -51,16 +52,18 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
     private int tmp = 0;
 
     private WifiManager mWifiManager;
+    private WifiFingerprintFilter wFilter;
     private ScanResultReceiver scanReceiver = new ScanResultReceiver();
     private List<WifiFingerprint> currentScanList = new ArrayList<>();
     private int numberOfScansCompleted = 1;
     private int numberOfScansStarted = 1;
     private int scansToDo;
+    private int stepsToFP;
     private Handler mHandler;
     private String currentLocation;
     private final long SCAN_DELAY = 2000;
 
-    private String TAG = "WifiFingerprinting";
+    private String TAG = "FPDebug";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +73,7 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         wifiCoord = new WifiCoordinator();
+        wFilter = new WifiFingerprintFilter();
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -83,7 +87,7 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
                         currentLocation = input.getText().toString();
-                        startScan();
+                        getStepCount();
                     }
                 });
                 builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
@@ -139,6 +143,28 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
         registerReceiver(scanReceiver, new IntentFilter(mWifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
     }
 
+    private void getStepCount() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(WifiFingerprintingActivity.this);
+        builder.setTitle("Enter Step Count");
+        final EditText input = new EditText(WifiFingerprintingActivity.this);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        builder.setView(input);
+        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                stepsToFP = Integer.parseInt(input.getText().toString());
+                startScan();
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                dialogInterface.cancel();
+            }
+        });
+        builder.show();
+    }
+
     private void startScan() {
         AlertDialog.Builder builder = new AlertDialog.Builder(WifiFingerprintingActivity.this);
         builder.setTitle("Enter Number of Scans");
@@ -164,7 +190,7 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
     // Scans x times specified by user input
     private class ScanResultReceiver extends BroadcastReceiver {
         public void onReceive(Context c, Intent i) {
-            Log.d("WIFI", "RECEIVED");
+            Log.d(TAG, "RECEIVED");
             WifiFingerprint createdFP = new WifiFingerprint(currentLocation);
             List<ScanResult> scans = mWifiManager.getScanResults();
             if (scans.isEmpty()) {
@@ -172,18 +198,19 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
             } else {
                 for (ScanResult scan : scans) {
                     String bssid = scan.BSSID;
-                    int level = scan.level;
+                    double level = scan.level;
                     createdFP.addRSS(bssid, level);
                 }
                 currentScanList.add(createdFP); // accumulates scans for one fp
-                Log.d("WIFI", numberOfScansCompleted + "" +  "number");
+                Log.d(TAG, numberOfScansCompleted + "" +  "number");
                 if (numberOfScansCompleted == scansToDo) {
                     wifiCoord.addScansToFingerprint(currentScanList, currentLocation);
                     currentScanList.clear();
                     numberOfScansCompleted = 1;
                     WifiFingerprint fp = wifiCoord.getLastAddedFingerprint();
+                    fp.setStepCount(stepsToFP);
                     addFingerprintElement(fp);
-                    Log.d("FP", fp.toString());
+                    Log.d(TAG, fp.toString());
                     return;
                 }
                 numberOfScansCompleted++;
@@ -222,7 +249,7 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
         builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                String name = input.getText().toString();
+                String name = input.getText().toString() + ".txt";
                 saveFingerprints(name);
             }
         });
@@ -238,13 +265,11 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
     private void saveFingerprints(String name) {
         StringBuilder sb = new StringBuilder();
         List<WifiFingerprint> fingerprints = wifiCoord.getFingerprints();
+        Gson gson = new Gson();
         for (int i=0; i < fingerprints.size(); i++) {
-            try {
-                sb.append(fingerprints.get(i).toJSON().toString());
+                // sb.append(fingerprints.get(i).toJSON().toString());
+                sb.append(gson.toJson(fingerprints.get(i)));
                 sb.append(System.getProperty("line.separator"));
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
             Log.d(TAG, sb.toString());
         }
 
@@ -263,6 +288,8 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
         catch (IOException e) {
             e.printStackTrace();
         }
+
+        Log.d(TAG, "Finished Saving");
     }
 
     public boolean onCreateOptionsMenu(Menu menu) {

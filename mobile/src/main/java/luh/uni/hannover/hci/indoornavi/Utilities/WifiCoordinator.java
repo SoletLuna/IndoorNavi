@@ -1,4 +1,4 @@
-package luh.uni.hannover.hci.indoornavi.WifiUtilities;
+package luh.uni.hannover.hci.indoornavi.Utilities;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +17,6 @@ public class WifiCoordinator {
 
     private List<WifiFingerprint> navigationPath = new ArrayList<>();
     private List<WifiFingerprint> filteredPath = new ArrayList<>();
-    private WifiFingerprintFilter wifiFilter;
     private WifiFingerprint targetLoc;
     private WifiFingerprint nextLoc;
     private WifiFingerprint unknownLoc;
@@ -36,6 +35,9 @@ public class WifiCoordinator {
         return navigationPath;
     }
 
+    public void setFilteredPath(List<WifiFingerprint> filtered) {
+        filteredPath = filtered;
+    }
     public void addFingerprint(WifiFingerprint fp) {
         navigationPath.add(fp);
     }
@@ -68,7 +70,7 @@ public class WifiCoordinator {
     }
 
     /** Only use this when a fingerprint's RSSI vector only contains one value per bssid
-     *
+     * Don't use this when we got the PF
      * @param fp1 unknown fp from scan
      * @param fp2 known fp from database
      * @param mode Manhattan distance = 1, Euclidean distance = 2
@@ -77,9 +79,9 @@ public class WifiCoordinator {
     public double getDistanceBetweenFP(WifiFingerprint fp1, WifiFingerprint fp2, int mode) {
         double dist = 0.0;
         for (String key : fp1.getWifiMap().keySet()) {
-            int level1 = fp1.getWifiMap().get(key).get(0);
+            double level1 = fp1.getWifiMap().get(key).get(0);
             if (fp2.getWifiMap().containsKey(key)) {
-                int level2 = fp2.getWifiMap().get(key).get(0);
+                double level2 = fp2.getWifiMap().get(key).get(0);
                 dist += Math.pow(level1 - level2, mode);
             } else {
                 // optional error, add -100 if it helps
@@ -89,14 +91,19 @@ public class WifiCoordinator {
         return dist;
     }
 
+    /**
+     * No need for this when using PF
+     * @param mode
+     * @return
+     */
     public double getDistanceToNextFP(int mode) {
         WifiFingerprint fp1 = unknownLoc;
         WifiFingerprint fp2 = nextLoc;
         double dist = 0.0;
         for (String key : fp1.getWifiMap().keySet()) {
-            int level1 = fp1.getWifiMap().get(key).get(0);
+            double level1 = fp1.getWifiMap().get(key).get(0);
             if (fp2.getWifiMap().containsKey(key)) {
-                int level2 = fp2.getWifiMap().get(key).get(0);
+                double level2 = fp2.getWifiMap().get(key).get(0);
                 dist += Math.pow(level1 - level2, mode);
             } else {
                 // optional error, add -100 if it helps

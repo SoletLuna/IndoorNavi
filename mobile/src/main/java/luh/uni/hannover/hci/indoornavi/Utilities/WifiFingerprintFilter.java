@@ -1,5 +1,7 @@
 package luh.uni.hannover.hci.indoornavi.Utilities;
 
+import android.util.Log;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,6 +15,7 @@ import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
 
 public class WifiFingerprintFilter {
 
+    private String TAG = "WFilter";
     /**
      * for a given fingerprint, return the n best RSS values
      * @param inFp
@@ -31,7 +34,7 @@ public class WifiFingerprintFilter {
         }
         List<String> processed = new ArrayList<>();
         while (processed.size() < n) {
-            double max = 0;
+            double max = -1000;
             String loc = "";
             int index = -1;
             for (int i=0; i < list.size(); i++) {
@@ -42,14 +45,13 @@ public class WifiFingerprintFilter {
                     if (str.trim().contains(bssid))
                         continue;
                 }
-
                 if (rss > max) {
                     max = rss;
                     loc = bssid;
                     index = i;
                 }
             }
-
+            processed.add(loc);
             outFP.addRSS(loc, max);
             list.remove(index);
         }

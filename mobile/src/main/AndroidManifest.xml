@@ -37,10 +37,13 @@
         <activity
             android:name=".NavigationActivity"
             android:label="@string/title_activity_navigation"
-            android:theme="@style/AppTheme.NoActionBar"></activity>
-        <service android:name=".Services.SensorService"></service>
-        <service android:name=".Services.WifiService"></service>
-        <service android:name=".Services.DataLayerPhoneService"></service>
+            android:theme="@style/AppTheme.NoActionBar" />
+
+        <service android:name=".Services.SensorService" />
+        <service android:name=".Services.WifiService" />
+        <service android:name=".Services.DataLayerPhoneService" />
+
+        <activity android:name=".ParticleTestActivity"></activity>
     </application>
 
 </manifest>

@@ -33,7 +33,7 @@ import java.util.List;
 import luh.uni.hannover.hci.indoornavi.Services.DataLayerPhoneService;
 import luh.uni.hannover.hci.indoornavi.Services.SensorService;
 import luh.uni.hannover.hci.indoornavi.Services.WifiService;
-import luh.uni.hannover.hci.indoornavi.WifiUtilities.WifiCoordinator;
+import luh.uni.hannover.hci.indoornavi.Utilities.WifiCoordinator;
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
 
 public class NavigationActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
@@ -133,7 +133,7 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
      * Gets called whenever a step is detected, checks if the step results in an image change or
      * something else
      */
-    private void updateFromStep() {
+        private void updateFromStep() {
         setNextImage();
     }
 
@@ -152,7 +152,6 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
      */
     private void updateFromScan(Intent intent) {
         wifiCoord.setUnknown(getUnknownFP(intent));
-
         double dist = wifiCoord.getDistanceToNextFP(2); // replace this and the condition by whatever method we will use
         if (dist < 20) {
             imageIndex = wifiCoord.reachedCheckpoint();/*
@@ -187,7 +186,7 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
     private WifiFingerprint getUnknownFP(Intent intent) {
         Bundle data = intent.getExtras();
         ArrayList<String> bssidList = data.getStringArrayList("BSSID");
-        ArrayList<Integer> rssList = data.getIntegerArrayList("RSS");
+        ArrayList<Double> rssList = (ArrayList<Double>) intent.getSerializableExtra("RSS");
         WifiFingerprint currentFP = new WifiFingerprint("current");
 
         for (int i=0; i < bssidList.size(); i++) {

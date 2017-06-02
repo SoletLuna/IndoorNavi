@@ -8,4 +8,5 @@
     <string name="open_fingerprinting">Open Fingerprinting</string>
     <string name="title_activity_navigation">NavigationActivity</string>
     <string name="save_fingerprints">Save Fingerprints</string>
+    <string name="open_particle">Open Particle Test</string>
 </resources>

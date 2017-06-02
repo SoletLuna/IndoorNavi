@@ -3,10 +3,13 @@ package luh.uni.hannover.hci.indoornavi.DataModels;
 import android.text.TextUtils;
 import android.view.TextureView;
 
+import com.google.gson.Gson;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -31,6 +34,7 @@ public class WifiFingerprint {
     public void addRSS(String bssid, Double level) {
         if (wifiMap.containsKey(bssid)) {
             wifiMap.get(bssid).add(level);
+            Collections.sort(wifiMap.get(bssid), Collections.<Double>reverseOrder());
         } else {
             List<Double> list = new ArrayList<>();
             list.add(level);
@@ -56,6 +60,10 @@ public class WifiFingerprint {
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
+        sb.append(loc);
+        sb.append(System.lineSeparator());
+        sb.append(stepToFP);
+        sb.append(System.lineSeparator());
         for (String key : wifiMap.keySet()) {
             sb.append(key + ": [");
             sb.append(TextUtils.join(",", wifiMap.get(key)));
