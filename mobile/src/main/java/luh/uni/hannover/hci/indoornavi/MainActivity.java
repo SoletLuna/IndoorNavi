@@ -24,6 +24,9 @@ import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
+import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.LineGraphSeries;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -51,6 +54,16 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 .addOnConnectionFailedListener(this)
                 .build();
         mGoogleApiClient.connect();
+
+        GraphView graph = (GraphView) findViewById(R.id.graph);
+        LineGraphSeries<DataPoint> series = new LineGraphSeries<>(new DataPoint[] {
+                new DataPoint(0, 1),
+                new DataPoint(1, 5),
+                new DataPoint(2, 3),
+                new DataPoint(3, 2),
+                new DataPoint(4, 6)
+        });
+        graph.addSeries(series);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -108,6 +121,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 return true;
             case R.id.open_particle:
                 startActivity(new Intent(this, ParticleTestActivity.class));
+                return true;
+            case R.id.open_baro:
+                startActivity(new Intent(this, BarometerSensorActivity.class));
+                return true;
+            case R.id.open_motion:
+                startActivity(new Intent(this, MotionSensorTestActivity.class));
                 return true;
         }
 

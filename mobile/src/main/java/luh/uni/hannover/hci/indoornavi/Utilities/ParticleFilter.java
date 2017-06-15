@@ -32,6 +32,8 @@ public class ParticleFilter {
     private double resampleRandom = 0.000000001;
     private double lastEstimate;
     private String TAG = "ParticleFilter";
+    private int pD = 1;
+    private double similarity;
 
     public ParticleFilter(int particles, List<WifiFingerprint> path) {
         numberOfParticles = particles;
@@ -51,8 +53,9 @@ public class ParticleFilter {
         return (x1 *(1-mu2) + x2*mu2);
     }
 
-    public void reset() {
+    public void reset(int particles) {
         listOfParticles.clear();
+        numberOfParticles = particles;
         start();
     }
 
@@ -182,18 +185,23 @@ public class ParticleFilter {
                     double valueL = navPath.get(l).getWifiMap().get(key).get(0);
                     double valueR = navPath.get(r).getWifiMap().get(key).get(0);
                     double mu;
+                    double posL = navPoints.get(l);
+                    double posR = navPoints.get(r);
                     if ((l - r) == 0) {
                         mu = 0;
                     } else {
-                        mu = (p.x - l) / (r - l);
+                        mu = (p.x - posL) / (posR - posL);
                     }
-                    double valueI = cosineInterpolate(valueL, valueR, mu);
-                    //Log.d(TAG, pID + ": " + p.x +","+l+","+r+", " + mu +"," +valueL +","+valueR+","+valueI);
+                    double valueI = linearInterpolate(valueL, valueR, mu);
+                    //Log.d(TAG, pID + ": " + p.x +" - "+l+","+r+" - " + mu +" - " +valueL +", "+valueR+", "+valueI + " - " + key);
                     interpolatedList.add(valueI);
                     measuredList.add(valueM);
                 }
+
             }
+            similarity = ((double)measuredList.size())/ ((double) fp.getWifiMap().size());
             p.weight = calculateWeight(interpolatedList, measuredList);
+            Log.d(TAG, pID + ": " + p.x + " - " + p.weight + " - " + similarity);
             pID++;
         }
         normalizeWeights();
@@ -203,12 +211,14 @@ public class ParticleFilter {
     private double calculateWeight(List<Double> values, List<Double> measuredValues) {
         double weight;
         double distance = 0;
+
         //calculate euclidian distance as preliminary weight
         for (int i=0; i < values.size(); i++) {
             distance += Math.pow(Math.abs(values.get(i) - measuredValues.get(i)),2);
         }
         distance = Math.sqrt(distance);
-        weight = distance;
+        weight = distance * 1/similarity;
+        //Log.d(TAG, values.toString() + " - " + measuredValues.toString() + " - " + weight);
         return weight;
     }
 

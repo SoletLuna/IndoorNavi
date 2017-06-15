@@ -21,6 +21,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ExpandableListView;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 
@@ -135,6 +136,11 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
 
     }
 
+    public void onPause() {
+        super.onPause();
+        unregisterReceiver(scanReceiver);
+    }
+
     private void setUpWifi() {
         mWifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
         if (mWifiManager.isWifiEnabled() == false) {
@@ -214,6 +220,8 @@ public class WifiFingerprintingActivity extends AppCompatActivity {
                     return;
                 }
                 numberOfScansCompleted++;
+                Toast.makeText(WifiFingerprintingActivity.this, Double.toString(numberOfScansCompleted),
+                        Toast.LENGTH_LONG).show();
                 mWifiManager.startScan();
             }
         }

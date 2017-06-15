@@ -22,6 +22,7 @@ public class WifiFingerprint {
     private HashMap<String, List<Double>> wifiMap = new HashMap<>();
     private String loc = "";
     private int stepToFP;
+    private String nextDirection;
 
     public WifiFingerprint(String ID) {
         loc = ID;
@@ -56,6 +57,14 @@ public class WifiFingerprint {
 
     public int getStepCount() {
         return stepToFP;
+    }
+
+    public String getDirection() {
+        return nextDirection;
+    }
+
+    public void setDirection(String dir) {
+        nextDirection = dir;
     }
 
     public String toString() {

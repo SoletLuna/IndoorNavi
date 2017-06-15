@@ -31,4 +31,16 @@
         android:orderInCategory="100"
         android:title="@string/open_particle"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/open_baro"
+        android:orderInCategory="100"
+        android:title="@string/open_baro"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/open_motion"
+        android:orderInCategory="100"
+        android:title="@string/open_motion"
+        app:showAsAction="never" />
 </menu>

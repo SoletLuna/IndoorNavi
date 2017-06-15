@@ -26,12 +26,12 @@ import luh.uni.hannover.hci.indoornavi.Utilities.SensorCoordinator;
  * It also should provide the current orientation (step length?) and the direction the user is moving.
  */
 
-public class SensorService extends Service implements SensorEventListener {
+public class MotionService extends Service implements SensorEventListener {
 
     private SensorManager mSensorManager;
     private Sensor accelSensor;
     private Sensor magSensor;
-    private String TAG = "SensorService";
+    private String TAG = "MotionService";
 
     private float[] mAccelerometerReading = new float[3];
 
@@ -131,6 +131,7 @@ public class SensorService extends Service implements SensorEventListener {
             magnitudeIndex++;
         }
     }
+
     double upperThresh = 10.5;
     double lowerThresh = 9.0;
     // time is calculated by using samples (a sample is proportional to the frequency, e.g. a time of 5 samples = 5 * 100 ms for example = 500 ms)

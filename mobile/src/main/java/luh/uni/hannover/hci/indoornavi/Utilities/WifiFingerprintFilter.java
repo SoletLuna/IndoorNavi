@@ -4,7 +4,9 @@ import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
 
@@ -117,6 +119,20 @@ public class WifiFingerprintFilter {
         }
 
         return outList;
+    }
+
+    public WifiFingerprint filterBadSignals(WifiFingerprint fp) {
+        WifiFingerprint filtered = new WifiFingerprint(fp.getLocation());
+        Set<String> keys = fp.getWifiMap().keySet();
+        for (String key : keys) {
+            double value = fp.getWifiMap().get(key).get(0);
+            if (value >= -85) {
+                filtered.addRSS(key, value);
+            }
+        }
+
+        filtered.setStepCount(fp.getStepCount());
+        return filtered;
     }
 
     private class FilterData {

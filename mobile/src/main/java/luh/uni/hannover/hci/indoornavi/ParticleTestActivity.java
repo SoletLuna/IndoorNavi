@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -44,8 +45,9 @@ public class ParticleTestActivity extends AppCompatActivity {
     private ParticleFilter pf;
     private WifiFingerprintFilter wFilter;
     private boolean started = false;
-    private int IAP = 5;
+    private int IAP = 10;
     private int steps = 0;
+    private int numberOfParticles = 30;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +58,9 @@ public class ParticleTestActivity extends AppCompatActivity {
 
         fileChooser = new FileChooser(ParticleTestActivity.this);
         wFilter = new WifiFingerprintFilter();
+
+        EditText ed = (EditText) findViewById(R.id.resetText);
+        ed.setText(String.valueOf(numberOfParticles));
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab_particle);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -90,7 +95,9 @@ public class ParticleTestActivity extends AppCompatActivity {
         reset.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                pf.reset();
+                EditText ed = (EditText) findViewById(R.id.resetText);
+                numberOfParticles = Integer.parseInt(ed.getText().toString());
+                pf.reset(numberOfParticles);
             }
         });
     }
@@ -139,11 +146,9 @@ public class ParticleTestActivity extends AppCompatActivity {
             fp.addRSS(bssidList.get(i), rssList.get(i));
         }
         //Log.d(TAG, fp.toString());
-        WifiFingerprint filteredFP = wFilter.filterBestInFingerprint(fp, IAP);
-        //Log.d(TAG, filteredFP.toString());
-
-        //pf.measureParticles(fp);
-        pf.measure(fp);
+        WifiFingerprint filteredFP = wFilter.filterBadSignals(fp);
+        Log.d(TAG, filteredFP.toString());
+        pf.measure(filteredFP);
         double pos = pf.estimatePosition();
         String str = pf.getBestParticle();
         Toast.makeText(this, Double.toString(pos) + " - " + str,
@@ -182,11 +187,19 @@ public class ParticleTestActivity extends AppCompatActivity {
     }
 
     public void initiateParticleFilter() {
-        List<WifiFingerprint> filtered = wFilter.filterAverageRSS(navigationPath);
+        List<WifiFingerprint> filtered = wFilter.filterBestInMultipleFingerprints(wFilter.filterAverageRSS(navigationPath), IAP);
+        List<WifiFingerprint> avgFilter = wFilter.filterAverageRSS(navigationPath);
         for (WifiFingerprint fp : filtered) {
             Log.d(TAG, fp.toString());
         }
-        pf = new ParticleFilter(50, filtered);
+
+        for (WifiFingerprint fp : avgFilter) {
+            Log.d(TAG, fp.toString());
+        }
+        //pf = new ParticleFilter(numberOfParticles, filtered);
+        EditText ed = (EditText) findViewById(R.id.resetText);
+        numberOfParticles = Integer.parseInt(ed.getText().toString());
+        pf = new ParticleFilter(numberOfParticles, avgFilter);
         pf.start();
         started = true;
         registerScanning();

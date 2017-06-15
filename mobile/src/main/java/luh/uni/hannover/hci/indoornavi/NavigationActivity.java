@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import luh.uni.hannover.hci.indoornavi.Services.DataLayerPhoneService;
-import luh.uni.hannover.hci.indoornavi.Services.SensorService;
+import luh.uni.hannover.hci.indoornavi.Services.MotionService;
 import luh.uni.hannover.hci.indoornavi.Services.WifiService;
 import luh.uni.hannover.hci.indoornavi.Utilities.WifiCoordinator;
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
@@ -72,7 +72,7 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
     @Override
     protected void onPause() {
         super.onPause();
-        Intent i = new Intent(getApplicationContext(), SensorService.class);
+        Intent i = new Intent(getApplicationContext(), MotionService.class);
         Intent i2 = new Intent(getApplicationContext(), WifiService.class);
         Intent i3 = new Intent(getApplicationContext(), DataLayerPhoneService.class);
         stopService(i);
@@ -113,7 +113,7 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
     }
 
     private void registerServices() {
-        Intent i = new Intent(getApplicationContext(), SensorService.class);
+        Intent i = new Intent(getApplicationContext(), MotionService.class);
         Intent i2 = new Intent(getApplicationContext(), WifiService.class);
         Intent i3 = new Intent(getApplicationContext(), DataLayerPhoneService.class);
         startService(i);

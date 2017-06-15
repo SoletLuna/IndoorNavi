@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="luh.uni.hannover.hci.indoornavi.MainActivity">
+    tools:context="luh.uni.hannover.hci.indoornavi.BarometerSensorActivity">
 
     <android.support.design.widget.AppBarLayout
         android:layout_width="match_parent"
@@ -28,14 +28,38 @@
         android:layout_margin="@dimen/fab_margin"
         app:srcCompat="@android:drawable/ic_dialog_email" />
 
-    <com.jjoe64.graphview.GraphView
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:id="@+id/graph"
-        android:layout_marginTop="60dp"/>
+    <TextView
+        android:id="@+id/baroText"
+        android:layout_width="272dp"
+        android:layout_height="53dp"
+        android:layout_gravity="center"
+        android:text="0" />
 
-    <include
-        android:id="@+id/include"
-        layout="@layout/content_main" />
+    <Button
+        android:id="@+id/baroStart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:text="Restart" />
+
+    <EditText
+        android:id="@+id/windowText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="100dp"
+        android:ems="10"
+        android:inputType="number"
+        android:text="Window Size" />
+
+    <EditText
+        android:id="@+id/changeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="150dp"
+        android:ems="10"
+        android:inputType="numberDecimal"
+        android:text="Min CHange" />
 
 </android.support.design.widget.CoordinatorLayout>
