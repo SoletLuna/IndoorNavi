@@ -32,14 +32,12 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
     private Sensor gyroSensor;
     private List<Double> accList = new ArrayList<>();
     private List<Double> avgAccList = new ArrayList<>();
-    private List<Float> gyroList = new ArrayList<>();
-    private List<Float> avgGyroList = new ArrayList<>();
     private boolean active = false;
     private int windowSize = 10;
 
     private double stepTime;
     private double stepThreshold;
-    private double minStepTime = 250000000; // in seconds for now
+    private double minStepTime = 3; //seconds
     private double minStepThreshold = 5; // for now
     private String previousCandidate = "";
     private double lastPeakValue = 0;
@@ -50,14 +48,20 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
     private boolean skipTime = false;
     private boolean setup = false;
 
+
     private int samples = 25;
     private int timeSamples = 5;
     private int thresholdSamples = 5;
 
     //calibration
     private boolean calibrated = false;
-    private List<Double> toCalibrateList = new ArrayList<>();
-    private List<Double> calibratedList = new ArrayList<>();
+    private List<StepData> toCalibrateList = new ArrayList<>();
+    private List<StepData> calibratedList = new ArrayList<>();
+    private List<StepData> calibrateCandidateList = new ArrayList<>();
+    private StepData lastPeak;
+    private StepData lastValley;
+    private String lastCandidate = "";
+    private int stepCounter = 0;
 
     private String TAG = "MotionTest";
     private StringBuilder sb = new StringBuilder();
@@ -107,12 +111,12 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
         // small scale first time setup
-        if (setup) {
+        if (!setup) {
             lastValleyTime = sensorEvent.timestamp;
             lastPeakTime = sensorEvent.timestamp;
             stepTime = minStepTime;
             stepThreshold = minStepThreshold;
-            setup = false;
+            setup = true;
         }
         if (sensorEvent.sensor == accSensor) {
             float x = sensorEvent.values[0];
@@ -120,24 +124,20 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
             float z = sensorEvent.values[2];
             double value = Math.sqrt(x * x + y * y + z * z);
             if (calibrated) {
-                addValue(accList, value, "live");
+                addValue(accList, value);
                 checkStep(sensorEvent.timestamp);
             } else {
-                addValue(toCalibrateList, value, "calibrate");
+                addValueCalibrate(value, sensorEvent.timestamp);
             }
         } else if (sensorEvent.sensor == gyroSensor) {
             //addValue(value, gyroSensor);
         }
     }
 
-    private void addValue(List<Double> list, double value, String mode) {
+    private void addValue(List<Double> list, double value) {
         list.add(value);
-        if (mode == "calibrate") {
-
-        } else {
-            if (list.size() > windowSize) {
-                list.remove(0);
-            }
+        if (list.size() > windowSize) {
+            list.remove(0);
         }
     }
 
@@ -232,16 +232,6 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
 
     private void updateStepThreshold(double diff) {
 
-    }
-
-    public void addValueAccel(double value, Sensor type) {
-        accList.add(value);
-        if (accList.size() > windowSize) {
-            accList.remove(0);
-        }
-        Log.d(TAG, "Value: " + value);
-        sb.append(value);
-        sb.append(System.lineSeparator());
     }
 
     public void averageWindow(int size) {
@@ -343,10 +333,6 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
         startSensors();
     }
 
-    private void addValueCalibrate(double value) {
-        toCalibrateList.add(value);
-    }
-
     private void stopCalibration() {
         filterCalibration(15);
         analyzeData();
@@ -357,20 +343,85 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
         double sum = 0.0;
 
         for (int i=0; i < window; i++) {
-            sum = sum + toCalibrateList.get(i);
+            sum = sum + toCalibrateList.get(i).value;
             double calValue = sum / (double) window;
-            calibratedList.add(calValue);
+            StepData data = new StepData(calValue, toCalibrateList.get(i).time);
+            calibratedList.add(data);
         }
 
         for (int i=window; i < toCalibrateList.size(); i++) {
-            sum = sum - toCalibrateList.get(i-window) + toCalibrateList.get(i);
+            sum = sum - toCalibrateList.get(i-window).value + toCalibrateList.get(i).value;
             double calValue = sum / (double) window;
-            calibratedList.add(calValue);
+            StepData data = new StepData(calValue, toCalibrateList.get(i).time);
+            calibratedList.add(data);
         }
     }
 
     private void analyzeData() {
-
+        for (int i=0; i < calibratedList.size(); i++) {
+            calibrateSteps(calibratedList.get(0));
+        }
     }
 
+    private void calibrateSteps(StepData data) {
+        calibrateCandidateList.add(data);
+        if (calibrateCandidateList.size() < 3) {
+            return;
+        }
+        if (calibrateCandidateList.size() > 3) {
+            calibrateCandidateList.remove(0);
+        }
+        String candidate =  findCalibrateCandidate();
+        StepData current = calibrateCandidateList.get(1);
+
+        if (candidate == "peak") {
+            lastPeak = current;
+            lastCandidate = "peak";
+        }
+        else if (candidate == "valley") {
+            if (lastCandidate == "peak") {
+                double diff = lastPeak.value - current.value;
+                long tDiff = lastValley.time - current.time;
+                double tDiffSec = tDiff /1000000000.0;
+                if (diff > minStepThreshold && tDiffSec > minStepTime) {
+                    stepCounter++;
+                }
+            }
+            lastValley = current;
+            lastCandidate = "peak";
+        }
+    }
+
+    private String findCalibrateCandidate() {
+        double previous = calibrateCandidateList.get(0).value;
+        double current = calibrateCandidateList.get(1).value;
+        double next = calibrateCandidateList.get(2).value;
+        String candidate = "inter";
+
+        double max = Math.max(previous, next);
+        double min = Math.min(previous, next);
+
+        if (current > max) {
+            candidate = "peak";
+        } else if (current < min) {
+            candidate = "valley";
+        }
+
+        return candidate;
+    }
+
+    private void addValueCalibrate(double value, long time) {
+        StepData data = new StepData(value, time);
+        toCalibrateList.add(data);
+    }
+
+    private class StepData {
+        long time;
+        double value;
+
+        public StepData(double val, long time) {
+            this.time = time;
+            this.value = val;
+        }
+    }
 }

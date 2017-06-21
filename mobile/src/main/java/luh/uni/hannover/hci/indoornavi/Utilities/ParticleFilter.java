@@ -290,4 +290,20 @@ public class ParticleFilter {
 
         return acc;
     }
+
+    /**
+     * Returns if fingerprint data is on the same 1D-stripe.  Data that is on another 1D-stripe should
+     * count less for weighting. (Imagine a path along a rectangle
+     * @return
+     */
+    private boolean onPath(double x, double left, double right) {
+        boolean isOnPath = false;
+
+        for (int i=0; i < navPoints.size(); i++) {
+            if (navPoints.get(i) > x) {
+
+            }
+        }
+        return isOnPath;
+    }
 }
