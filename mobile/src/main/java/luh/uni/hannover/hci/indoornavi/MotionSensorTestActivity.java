@@ -16,20 +16,30 @@ import android.text.InputType;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.Surface;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.EditText;
 
+import org.json.JSONException;
+
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import luh.uni.hannover.hci.indoornavi.Utilities.FileChooser;
+
 public class MotionSensorTestActivity extends AppCompatActivity implements SensorEventListener {
 
+    FileChooser fileChooser;
     private SensorManager mSensorManager;
     private Sensor accSensor;
-    private Sensor gyroSensor;
     private List<Double> accList = new ArrayList<>();
     private List<Double> avgAccList = new ArrayList<>();
     private boolean active = false;
@@ -38,7 +48,7 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
     private double stepTime;
     private double stepThreshold;
     private double minStepTime = 3; //seconds
-    private double minStepThreshold = 5; // for now
+    private double minStepThreshold = 1; // for now
     private String previousCandidate = "";
     private double lastPeakValue = 0;
     private double lastValleyValue = 0;
@@ -63,6 +73,13 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
     private String lastCandidate = "";
     private int stepCounter = 0;
 
+    // turning
+    private Sensor rotSensor;
+    final float[] rotationMatrix = new float[9];
+    final float[] orientation = new float[3];
+    float[] adjustedRotationMatrix = new float[9];
+    private WindowManager mWindowManager;
+
     private String TAG = "MotionTest";
     private StringBuilder sb = new StringBuilder();
     private StringBuilder sb2 = new StringBuilder();
@@ -74,6 +91,7 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        fileChooser = new FileChooser(this);
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -91,13 +109,15 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
         });
 
         mSensorManager = (SensorManager) getApplicationContext().getSystemService(SENSOR_SERVICE);
+        rotSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+        mWindowManager = getWindowManager();
         accSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        gyroSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
     }
 
     private void startSensors() {
-        mSensorManager.registerListener(this, accSensor, SensorManager.SENSOR_DELAY_UI);
-       // mSensorManager.registerListener(this, gyroSensor, SensorManager.SENSOR_DELAY_FASTEST);
+        //mSensorManager.registerListener(this, accSensor, SensorManager.SENSOR_DELAY_UI);
+        mSensorManager.registerListener(this, rotSensor, SensorManager.SENSOR_DELAY_UI);
+
     }
 
     private void stopSensors() {
@@ -110,6 +130,9 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
+        if (sensorEvent.sensor == rotSensor) {
+            updateOrientation(sensorEvent.values);
+        }
         // small scale first time setup
         if (!setup) {
             lastValleyTime = sensorEvent.timestamp;
@@ -129,9 +152,47 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
             } else {
                 addValueCalibrate(value, sensorEvent.timestamp);
             }
-        } else if (sensorEvent.sensor == gyroSensor) {
-            //addValue(value, gyroSensor);
         }
+    }
+
+    private void updateOrientation(float[] rotationVector) {
+        mSensorManager.getRotationMatrixFromVector(rotationMatrix, rotationVector);
+
+        final int worldAxisForDeviceAxisX;
+        final int worldAxisForDeviceAxisY;
+
+        // Remap the axes as if the device screen was the instrument panel,
+        // and adjust the rotation matrix for the device orientation.
+        switch (mWindowManager.getDefaultDisplay().getRotation()) {
+            case Surface.ROTATION_0:
+            default:
+                worldAxisForDeviceAxisX = SensorManager.AXIS_X;
+                worldAxisForDeviceAxisY = SensorManager.AXIS_Z;
+                break;
+            case Surface.ROTATION_90:
+                worldAxisForDeviceAxisX = SensorManager.AXIS_Z;
+                worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_X;
+                break;
+            case Surface.ROTATION_180:
+                worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_X;
+                worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_Z;
+                break;
+            case Surface.ROTATION_270:
+                worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_Z;
+                worldAxisForDeviceAxisY = SensorManager.AXIS_X;
+                break;
+        }
+
+        SensorManager.remapCoordinateSystem(rotationMatrix, worldAxisForDeviceAxisX,
+                worldAxisForDeviceAxisY, adjustedRotationMatrix);
+
+        mSensorManager.getOrientation(adjustedRotationMatrix, orientation);
+        float x = orientation[0] * -57 + 180;
+        float y = orientation[1] * -57 + 180;
+        float z = orientation[2] * -57 + 180;
+        Log.d(TAG, "RotationVector: " + x + ", " + y + ", " + z);
+        sb.append(x);
+        sb.append(System.lineSeparator());
     }
 
     private void addValue(List<Double> list, double value) {
@@ -265,13 +326,14 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
         }
 
         int counter = 1;
+        int counter2 = 1;
         while (fileNames.contains(name)) {
             counter++;
             name = "step" + counter + ".txt";
         }
         while (fileNames.contains(name2)) {
-            counter++;
-            name2 = "window" + counter + ".txt";
+            counter2++;
+            name2 = "window" + counter2 + ".txt";
         }
 
         if (!root.mkdirs()) {
@@ -288,7 +350,7 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
             e.printStackTrace();
         }
 
-        try {
+       /* try {
             File myFile = new File(root, name2);
             FileOutputStream fos = new FileOutputStream(myFile);
             fos.write(sb2.toString().getBytes());
@@ -297,7 +359,7 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
         } catch (IOException e) {
             e.printStackTrace();
         }
-
+*/
     }
 
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -316,13 +378,17 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
 
         switch (id) {
             case R.id.start_calibrate:
-                if (calibrated) {
-                    stopCalibration();
-                } else {
+                if (!calibrated)
                     startCalibration();
-                }
                 return true;
+            case R.id.stop_calibrate:
+                if (!calibrated) {
+                    stopCalibration();
+                    return true;
+                }
             case R.id.test_calibrate:
+                loadTestData();
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -330,36 +396,53 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
 
     private void startCalibration() {
         calibrated = false;
+        sb.setLength(0);
+        sb2.setLength(0);
         startSensors();
     }
 
     private void stopCalibration() {
         filterCalibration(15);
         analyzeData();
-        calibrated = true;
+        Log.d(TAG, "Steps: " + stepCounter);
+        for (int i=0; i < calibratedList.size(); i++) {
+            sb2.append(calibratedList.get(i).value);
+            sb2.append(System.lineSeparator());
+        }
+        saveLogFile();
+        sb.setLength(0);
+        sb2.setLength(0);
+        toCalibrateList.clear();
+        calibratedList.clear();
+        calibrateCandidateList.clear();
+        calibrated = false;
     }
 
     private void filterCalibration(int window) {
         double sum = 0.0;
-
+        int count = 0;
         for (int i=0; i < window; i++) {
             sum = sum + toCalibrateList.get(i).value;
-            double calValue = sum / (double) window;
+            double calValue = sum / (double) (i + 1);
             StepData data = new StepData(calValue, toCalibrateList.get(i).time);
             calibratedList.add(data);
+            count++;
         }
 
         for (int i=window; i < toCalibrateList.size(); i++) {
-            sum = sum - toCalibrateList.get(i-window).value + toCalibrateList.get(i).value;
+            double rem = toCalibrateList.get(i - window).value;
+            double add = toCalibrateList.get(i).value;
+            sum = sum - rem + add;
             double calValue = sum / (double) window;
             StepData data = new StepData(calValue, toCalibrateList.get(i).time);
             calibratedList.add(data);
+            count++;
         }
     }
 
     private void analyzeData() {
         for (int i=0; i < calibratedList.size(); i++) {
-            calibrateSteps(calibratedList.get(0));
+            calibrateSteps(calibratedList.get(i));
         }
     }
 
@@ -372,6 +455,7 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
             calibrateCandidateList.remove(0);
         }
         String candidate =  findCalibrateCandidate();
+        //Log.d(TAG, "Cand: " + candidate);
         StepData current = calibrateCandidateList.get(1);
 
         if (candidate == "peak") {
@@ -381,14 +465,15 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
         else if (candidate == "valley") {
             if (lastCandidate == "peak") {
                 double diff = lastPeak.value - current.value;
-                long tDiff = lastValley.time - current.time;
-                double tDiffSec = tDiff /1000000000.0;
-                if (diff > minStepThreshold && tDiffSec > minStepTime) {
+                //long tDiff = lastValley.time - current.time;
+                //  double tDiffSec = tDiff /1000000000.0;
+                if (diff > minStepThreshold) {
+                    Log.d(TAG, "Step: " + diff + " - " + lastPeak.value + ", " + current.value);
                     stepCounter++;
                 }
             }
             lastValley = current;
-            lastCandidate = "peak";
+            lastCandidate = "valley";
         }
     }
 
@@ -397,7 +482,7 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
         double current = calibrateCandidateList.get(1).value;
         double next = calibrateCandidateList.get(2).value;
         String candidate = "inter";
-
+        //Log.d(TAG, "List: " + previous + ", " + current + ", " + next);
         double max = Math.max(previous, next);
         double min = Math.min(previous, next);
 
@@ -413,6 +498,8 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
     private void addValueCalibrate(double value, long time) {
         StepData data = new StepData(value, time);
         toCalibrateList.add(data);
+        sb.append(value);
+        sb.append(System.lineSeparator());
     }
 
     private class StepData {
@@ -423,5 +510,43 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
             this.time = time;
             this.value = val;
         }
+    }
+
+    public void loadTestData() {
+        fileChooser.setFileListener(new FileChooser.FileSelectedListener() {
+            @Override
+            public void fileSelected(File file) {
+                String filePath = file.getAbsolutePath();
+                Log.d(TAG, filePath);
+                try {
+                    FileInputStream fis = new FileInputStream(new File(filePath));
+                    if (fis != null) {
+                        InputStreamReader isReader = new InputStreamReader(fis);
+                        BufferedReader bufferedReader = new BufferedReader(isReader);
+                        String receive = "";
+                        try {
+                            while ((receive = bufferedReader.readLine()) != null) {
+                                parseData(receive);
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+                testTestData();
+            }
+        }).showDialog();
+    }
+
+    private void parseData(String receive) {
+        double value = Double.parseDouble(receive);
+        StepData data = new StepData(value, 0);
+        toCalibrateList.add(data);
+    }
+
+    private void testTestData() {
+        stopCalibration();
     }
 }

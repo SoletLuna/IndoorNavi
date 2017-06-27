@@ -9,6 +9,12 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/stop_calibrate"
+        android:orderInCategory="100"
+        android:title="@string/stop_calibrate"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/test_calibrate"
         android:orderInCategory="100"
         android:title="@string/test_calibrate"
