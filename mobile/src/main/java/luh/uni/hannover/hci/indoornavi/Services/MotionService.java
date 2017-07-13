@@ -108,7 +108,8 @@ public class MotionService extends Service implements SensorEventListener {
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
         if (sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            Log.d(TAG, "Hallo");
+            oldStepDetector(sensorEvent);
+/*            Log.d(TAG, "Hallo");
             System.arraycopy(sensorEvent.values, 0, mAccelerometerReading,
                     0, mAccelerometerReading.length);
             double magnitude = Math.sqrt(mAccelerometerReading[0] * mAccelerometerReading[0] + mAccelerometerReading[1] * mAccelerometerReading[1] + mAccelerometerReading[2] * mAccelerometerReading[2]);
@@ -128,7 +129,7 @@ public class MotionService extends Service implements SensorEventListener {
                 // adaptiveStepDetector(mags);
                 stepDetect(mags);
             }
-            magnitudeIndex++;
+            magnitudeIndex++;*/
         }
     }
 

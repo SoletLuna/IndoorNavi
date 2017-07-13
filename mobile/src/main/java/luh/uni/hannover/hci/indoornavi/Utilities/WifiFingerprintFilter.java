@@ -2,6 +2,8 @@ package luh.uni.hannover.hci.indoornavi.Utilities;
 
 import android.util.Log;
 
+import org.apache.commons.math3.distribution.NormalDistribution;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -9,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
+import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprintPDF;
 
 /**
  * Created by solet on 16/05/2017.
@@ -121,12 +124,12 @@ public class WifiFingerprintFilter {
         return outList;
     }
 
-    public WifiFingerprint filterBadSignals(WifiFingerprint fp) {
+    public WifiFingerprint filterBadSignals(WifiFingerprint fp, double threshold) {
         WifiFingerprint filtered = new WifiFingerprint(fp.getLocation());
         Set<String> keys = fp.getWifiMap().keySet();
         for (String key : keys) {
             double value = fp.getWifiMap().get(key).get(0);
-            if (value >= -85) {
+            if (value >= threshold) {
                 filtered.addRSS(key, value);
             }
         }
@@ -134,6 +137,62 @@ public class WifiFingerprintFilter {
         filtered.setStepCount(fp.getStepCount());
         return filtered;
     }
+
+    /**
+     * Calculates standard deviation and mean value for PDF
+     * @param fp
+     */
+    public WifiFingerprintPDF addPDF(WifiFingerprint fp) {
+        WifiFingerprintPDF pdf = new WifiFingerprintPDF(fp.getLocation());
+        pdf.setDirection(fp.getDirection());
+        pdf.setStepCount(fp.getStepCount());
+        Set<String> keys = fp.getWifiMap().keySet();
+        for (String key : keys) {
+            List<Double> list = fp.getWifiMap().get(key);
+            double mean = calculateMean(list);
+            double sigma = calculateSDeviation(list, mean);
+            NormalDistribution norm = new NormalDistribution(mean, sigma);
+            pdf.addPDF(key, norm);
+        }
+
+        return pdf;
+    }
+
+    public List<WifiFingerprintPDF> addPDFtoFingerprints(List<WifiFingerprint> list) {
+        List<WifiFingerprintPDF> listPDF = new ArrayList<>();
+        for (int i=0; i < list.size(); i++) {
+            WifiFingerprint fp = list.get(i);
+            listPDF.add(addPDF(fp));
+        }
+        return listPDF;
+    }
+
+    private double calculateMean(List<Double> list) {
+        double sum = 0.0;
+        for (Double value : list) {
+            sum += value;
+        }
+        sum = sum / list.size();
+
+        return sum;
+    }
+
+    private double calculateSDeviation(List<Double> list, double mean) {
+        double squaredSum = 0.0;
+        for (Double value : list) {
+            double dev = Math.pow(value - mean, 2);
+            squaredSum += dev;
+        }
+        squaredSum = squaredSum / list.size();
+
+        double sigma = Math.sqrt(squaredSum);
+
+        if (sigma <= 0) {
+            sigma = 0.01;
+        }
+        return sigma;
+    }
+
 
     private class FilterData {
 

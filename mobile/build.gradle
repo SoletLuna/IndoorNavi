@@ -1,3 +1,4 @@
+//noinspection GradleCompatible
 apply plugin: 'com.android.application'
 
 android {
@@ -27,7 +28,9 @@ dependencies {
     wearApp project(':wear')
     compile 'com.google.code.gson:gson:2.8.0'
     compile 'com.jjoe64:graphview:4.2.1'
-    compile 'com.google.android.gms:play-services-wearable:10.2.1'
+    compile 'com.google.android.gms:play-services-wearable:11.0.1'
+    compile 'com.google.android.gms:play-services-location:11.0.1'
+    compile 'org.apache.commons:commons-math3:3.6.1'
     compile 'com.android.support:appcompat-v7:25.3.0'
     compile 'com.android.support.constraint:constraint-layout:1.0.2'
     compile 'com.android.support:design:25.3.0'

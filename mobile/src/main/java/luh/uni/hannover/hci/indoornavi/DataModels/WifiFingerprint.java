@@ -5,6 +5,7 @@ import android.view.TextureView;
 
 import com.google.gson.Gson;
 
+import org.apache.commons.math3.distribution.NormalDistribution;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -20,6 +21,7 @@ import java.util.List;
 public class WifiFingerprint {
 
     private HashMap<String, List<Double>> wifiMap = new HashMap<>();
+
     private String loc = "";
     private int stepToFP;
     private String nextDirection;
@@ -66,6 +68,8 @@ public class WifiFingerprint {
     public void setDirection(String dir) {
         nextDirection = dir;
     }
+
+
 
     public String toString() {
         StringBuilder sb = new StringBuilder();

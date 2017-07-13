@@ -3,6 +3,8 @@ package luh.uni.hannover.hci.indoornavi.Utilities;
 import android.util.Log;
 import android.widget.Toast;
 
+import org.apache.commons.math3.distribution.NormalDistribution;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +13,7 @@ import java.util.Set;
 
 import luh.uni.hannover.hci.indoornavi.DataModels.Particle;
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
+import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprintPDF;
 
 /**
  * Created by solet on 23/05/2017.
@@ -26,6 +29,7 @@ public class ParticleFilter {
     private Random rnd = new Random();
     private List<WifiFingerprint> navPath = new ArrayList<>();
     private List<Integer> navPoints = new ArrayList<>();
+    private List<WifiFingerprintPDF> navPDF = new ArrayList<>();
     private int xMax;
     private double sigmaPos = 0.1;
     private double stepLength = 1;
@@ -38,6 +42,10 @@ public class ParticleFilter {
     public ParticleFilter(int particles, List<WifiFingerprint> path) {
         numberOfParticles = particles;
         navPath = path;
+    }
+
+    public void addPDFtoPF(List<WifiFingerprintPDF> listPDF) {
+        navPDF = listPDF;
     }
 
     /**
@@ -208,6 +216,61 @@ public class ParticleFilter {
 
     }
 
+    public void measurePDF(WifiFingerprint fp) {
+        HashMap<String, List<Double>> measurement = fp.getWifiMap();
+        Set<String> keys = measurement.keySet();
+        int pID = 1;
+
+        for (Particle p : listOfParticles) {
+            p.weight = 0;
+            List<Double> scoreList = new ArrayList<>();
+            for (String key : keys) {
+                int l = -1;
+                int r = -1;
+                for (int i=0; i < navPath.size(); i++) {
+                    if (navPath.get(i).getWifiMap().containsKey(key)) {
+                        if (navPoints.get(i) <= p.x) {
+                            l = i;
+                        }
+                        if (navPoints.get(i) >= p.x) {
+                            if (i > r && r >= 0) {
+
+                            } else {
+                                r = i;
+                            }
+                        }
+                    }
+                }
+                if ((r >= 0 && l >= 0)) {
+                    double valueM = measurement.get(key).get(0);
+                    NormalDistribution normL = navPDF.get(l).getWifiMapPDF().get(key);
+                    NormalDistribution normR = navPDF.get(r).getWifiMapPDF().get(key);
+                    double meanL = normL.getMean();
+                    double meanR = normR.getMean();
+                    double diffL = Math.abs(meanL - valueM);
+                    double diffR = Math.abs(meanR - valueM);
+                    double scoreL = normL.cumulativeProbability(meanL + diffL) - normL.cumulativeProbability(meanL - diffL);
+                    double scoreR = normR.cumulativeProbability(meanR + diffR) - normR.cumulativeProbability(meanR - diffR);
+                    double score = scoreL * scoreR;
+                    scoreList.add(score);
+                }
+
+            }
+            pID++;
+            p.weight = calculateScore(scoreList);
+        }
+        normalizeWeightsPDF();
+    }
+
+    private double calculateScore(List<Double> list) {
+        double score = 1;
+        for (Double value : list) {
+            score *= value;
+        }
+
+        return score;
+    }
+
     private double calculateWeight(List<Double> values, List<Double> measuredValues) {
         double weight;
         double distance = 0;
@@ -234,6 +297,17 @@ public class ParticleFilter {
         for (Particle p : listOfParticles) {
             weight += p.weight;
         }
+        for (Particle p : listOfParticles) {
+            p.weight = p.weight/weight;
+        }
+    }
+
+    private void normalizeWeightsPDF() {
+        double weight = 0;
+        for (Particle p : listOfParticles) {
+            weight += p.weight;
+        }
+
         for (Particle p : listOfParticles) {
             p.weight = p.weight/weight;
         }

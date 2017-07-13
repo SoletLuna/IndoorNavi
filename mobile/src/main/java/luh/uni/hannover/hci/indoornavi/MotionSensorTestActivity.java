@@ -20,6 +20,7 @@ import android.view.Surface;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.EditText;
+import android.widget.TextView;
 
 import org.json.JSONException;
 
@@ -78,7 +79,7 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
     final float[] rotationMatrix = new float[9];
     final float[] orientation = new float[3];
     float[] adjustedRotationMatrix = new float[9];
-    private WindowManager mWindowManager;
+    TextView tv;
 
     private String TAG = "MotionTest";
     private StringBuilder sb = new StringBuilder();
@@ -100,9 +101,9 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
                     stopSensors();
                     active = false;
                     saveLogFile();
+                    sb.setLength(0);
                 } else {
                     setup = true;
-                    startSensors();
                     active = true;
                 }
             }
@@ -110,12 +111,15 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
 
         mSensorManager = (SensorManager) getApplicationContext().getSystemService(SENSOR_SERVICE);
         rotSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
-        mWindowManager = getWindowManager();
         accSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        tv = (TextView) findViewById(R.id.debugText);
+
+        startSensors();
+
     }
 
     private void startSensors() {
-        //mSensorManager.registerListener(this, accSensor, SensorManager.SENSOR_DELAY_UI);
+        mSensorManager.registerListener(this, accSensor, SensorManager.SENSOR_DELAY_UI);
         mSensorManager.registerListener(this, rotSensor, SensorManager.SENSOR_DELAY_UI);
 
     }
@@ -133,8 +137,9 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
         if (sensorEvent.sensor == rotSensor) {
             updateOrientation(sensorEvent.values);
         }
+
         // small scale first time setup
-        if (!setup) {
+/*        if (!setup) {
             lastValleyTime = sensorEvent.timestamp;
             lastPeakTime = sensorEvent.timestamp;
             stepTime = minStepTime;
@@ -152,45 +157,28 @@ public class MotionSensorTestActivity extends AppCompatActivity implements Senso
             } else {
                 addValueCalibrate(value, sensorEvent.timestamp);
             }
-        }
+        }*/
     }
+
 
     private void updateOrientation(float[] rotationVector) {
         mSensorManager.getRotationMatrixFromVector(rotationMatrix, rotationVector);
 
-        final int worldAxisForDeviceAxisX;
+/*        final int worldAxisForDeviceAxisX;
         final int worldAxisForDeviceAxisY;
-
-        // Remap the axes as if the device screen was the instrument panel,
-        // and adjust the rotation matrix for the device orientation.
-        switch (mWindowManager.getDefaultDisplay().getRotation()) {
-            case Surface.ROTATION_0:
-            default:
                 worldAxisForDeviceAxisX = SensorManager.AXIS_X;
                 worldAxisForDeviceAxisY = SensorManager.AXIS_Z;
-                break;
-            case Surface.ROTATION_90:
-                worldAxisForDeviceAxisX = SensorManager.AXIS_Z;
-                worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_X;
-                break;
-            case Surface.ROTATION_180:
-                worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_X;
-                worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_Z;
-                break;
-            case Surface.ROTATION_270:
-                worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_Z;
-                worldAxisForDeviceAxisY = SensorManager.AXIS_X;
-                break;
-        }
+
 
         SensorManager.remapCoordinateSystem(rotationMatrix, worldAxisForDeviceAxisX,
-                worldAxisForDeviceAxisY, adjustedRotationMatrix);
+                worldAxisForDeviceAxisY, adjustedRotationMatrix);*/
 
-        mSensorManager.getOrientation(adjustedRotationMatrix, orientation);
+        mSensorManager.getOrientation(rotationMatrix, orientation);
         float x = orientation[0] * -57 + 180;
         float y = orientation[1] * -57 + 180;
         float z = orientation[2] * -57 + 180;
         Log.d(TAG, "RotationVector: " + x + ", " + y + ", " + z);
+        tv.setText(x +"");
         sb.append(x);
         sb.append(System.lineSeparator());
     }

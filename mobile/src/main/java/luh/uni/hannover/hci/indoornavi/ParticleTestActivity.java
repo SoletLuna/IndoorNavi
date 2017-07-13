@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
+import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprintPDF;
 import luh.uni.hannover.hci.indoornavi.Services.WifiService;
 import luh.uni.hannover.hci.indoornavi.Utilities.FileChooser;
 import luh.uni.hannover.hci.indoornavi.Utilities.ParticleFilter;
@@ -146,9 +147,10 @@ public class ParticleTestActivity extends AppCompatActivity {
             fp.addRSS(bssidList.get(i), rssList.get(i));
         }
         //Log.d(TAG, fp.toString());
-        WifiFingerprint filteredFP = wFilter.filterBadSignals(fp);
+        WifiFingerprint filteredFP = wFilter.filterBadSignals(fp, -80);
         Log.d(TAG, filteredFP.toString());
-        pf.measure(filteredFP);
+        // pf.measure(filteredFP);
+        pf.measurePDF(filteredFP);
         double pos = pf.estimatePosition();
         String str = pf.getBestParticle();
         Toast.makeText(this, Double.toString(pos) + " - " + str,
@@ -187,19 +189,22 @@ public class ParticleTestActivity extends AppCompatActivity {
     }
 
     public void initiateParticleFilter() {
-        List<WifiFingerprint> filtered = wFilter.filterBestInMultipleFingerprints(wFilter.filterAverageRSS(navigationPath), IAP);
+       // List<WifiFingerprint> filtered = wFilter.filterBestInMultipleFingerprints(wFilter.filterAverageRSS(navigationPath), IAP);
+       List<WifiFingerprintPDF> listPDF = wFilter.addPDFtoFingerprints(navigationPath);
         List<WifiFingerprint> avgFilter = wFilter.filterAverageRSS(navigationPath);
-        for (WifiFingerprint fp : filtered) {
+/*        for (WifiFingerprint fp : filtered) {
             Log.d(TAG, fp.toString());
-        }
+        }*/
 
         for (WifiFingerprint fp : avgFilter) {
             Log.d(TAG, fp.toString());
+
         }
         //pf = new ParticleFilter(numberOfParticles, filtered);
         EditText ed = (EditText) findViewById(R.id.resetText);
         numberOfParticles = Integer.parseInt(ed.getText().toString());
         pf = new ParticleFilter(numberOfParticles, avgFilter);
+        pf.addPDFtoPF(listPDF);
         pf.start();
         started = true;
         registerScanning();

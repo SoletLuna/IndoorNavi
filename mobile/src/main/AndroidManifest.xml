@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
 
     <application
         android:allowBackup="true"
@@ -42,6 +43,7 @@
         <service android:name=".Services.MotionService" />
         <service android:name=".Services.WifiService" />
         <service android:name=".Services.DataLayerPhoneService" />
+        <service android:name=".Services.ActivityRecognitionService" />
 
         <activity android:name=".ParticleTestActivity" />
         <activity
@@ -51,7 +53,8 @@
         <activity
             android:name=".MotionSensorTestActivity"
             android:label="@string/title_activity_step_test"
-            android:theme="@style/AppTheme.NoActionBar"></activity>
+            android:theme="@style/AppTheme.NoActionBar" />
+
     </application>
 
 </manifest>
