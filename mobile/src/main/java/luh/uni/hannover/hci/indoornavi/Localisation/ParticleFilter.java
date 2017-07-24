@@ -1,4 +1,4 @@
-package luh.uni.hannover.hci.indoornavi.Utilities;
+package luh.uni.hannover.hci.indoornavi.Localisation;
 
 import android.util.Log;
 import android.widget.Toast;
@@ -214,52 +214,6 @@ public class ParticleFilter {
         }
         normalizeWeights();
 
-    }
-
-    public void measurePDF(WifiFingerprint fp) {
-        HashMap<String, List<Double>> measurement = fp.getWifiMap();
-        Set<String> keys = measurement.keySet();
-        int pID = 1;
-
-        for (Particle p : listOfParticles) {
-            p.weight = 0;
-            List<Double> scoreList = new ArrayList<>();
-            for (String key : keys) {
-                int l = -1;
-                int r = -1;
-                for (int i=0; i < navPath.size(); i++) {
-                    if (navPath.get(i).getWifiMap().containsKey(key)) {
-                        if (navPoints.get(i) <= p.x) {
-                            l = i;
-                        }
-                        if (navPoints.get(i) >= p.x) {
-                            if (i > r && r >= 0) {
-
-                            } else {
-                                r = i;
-                            }
-                        }
-                    }
-                }
-                if ((r >= 0 && l >= 0)) {
-                    double valueM = measurement.get(key).get(0);
-                    NormalDistribution normL = navPDF.get(l).getWifiMapPDF().get(key);
-                    NormalDistribution normR = navPDF.get(r).getWifiMapPDF().get(key);
-                    double meanL = normL.getMean();
-                    double meanR = normR.getMean();
-                    double diffL = Math.abs(meanL - valueM);
-                    double diffR = Math.abs(meanR - valueM);
-                    double scoreL = normL.cumulativeProbability(meanL + diffL) - normL.cumulativeProbability(meanL - diffL);
-                    double scoreR = normR.cumulativeProbability(meanR + diffR) - normR.cumulativeProbability(meanR - diffR);
-                    double score = scoreL * scoreR;
-                    scoreList.add(score);
-                }
-
-            }
-            pID++;
-            p.weight = calculateScore(scoreList);
-        }
-        normalizeWeightsPDF();
     }
 
     private double calculateScore(List<Double> list) {

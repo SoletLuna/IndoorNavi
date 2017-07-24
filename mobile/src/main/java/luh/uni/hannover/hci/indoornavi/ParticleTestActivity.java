@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.content.LocalBroadcastManager;
-import android.support.v4.widget.TextViewCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -19,7 +18,6 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -28,14 +26,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprintPDF;
 import luh.uni.hannover.hci.indoornavi.Services.WifiService;
 import luh.uni.hannover.hci.indoornavi.Utilities.FileChooser;
-import luh.uni.hannover.hci.indoornavi.Utilities.ParticleFilter;
+import luh.uni.hannover.hci.indoornavi.Localisation.ParticleFilter;
 import luh.uni.hannover.hci.indoornavi.Utilities.WifiFingerprintFilter;
 
 public class ParticleTestActivity extends AppCompatActivity {

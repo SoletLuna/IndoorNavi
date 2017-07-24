@@ -139,7 +139,7 @@ public class WifiFingerprintFilter {
     }
 
     /**
-     * Calculates standard deviation and mean value for PDF
+     * Calculates standard deviation and mean value for PDF and returns FP as a PDF
      * @param fp
      */
     public WifiFingerprintPDF addPDF(WifiFingerprint fp) {
