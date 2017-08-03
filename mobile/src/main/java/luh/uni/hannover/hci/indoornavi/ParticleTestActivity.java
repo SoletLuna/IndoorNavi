@@ -13,7 +13,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.gson.Gson;
 
@@ -30,6 +29,7 @@ import java.util.List;
 
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprintPDF;
+import luh.uni.hannover.hci.indoornavi.Localisation.ParticleFilterStatic;
 import luh.uni.hannover.hci.indoornavi.Services.WifiService;
 import luh.uni.hannover.hci.indoornavi.Utilities.FileChooser;
 import luh.uni.hannover.hci.indoornavi.Localisation.ParticleFilter;
@@ -41,11 +41,12 @@ public class ParticleTestActivity extends AppCompatActivity {
     private String TAG = "ParticleDebug";
     private ArrayList<WifiFingerprint> navigationPath = new ArrayList<>();
     private ParticleFilter pf;
+    private ParticleFilterStatic pfLite;
     private WifiFingerprintFilter wFilter;
     private boolean started = false;
     private int IAP = 10;
     private int steps = 0;
-    private int numberOfParticles = 30;
+    private int numberOfParticles = 45;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,8 +75,8 @@ public class ParticleTestActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 steps++;
-                TextView tv = (TextView) findViewById(R.id.stepText);
-                tv.setText(Integer.toString(steps));
+                /*TextView tv = (TextView) findViewById(R.id.stepText);
+                tv.setText(Integer.toString(steps));*/
                 pf.stepParticles();
             }
         });
@@ -83,8 +84,8 @@ public class ParticleTestActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 steps--;
-                TextView tv = (TextView) findViewById(R.id.stepText);
-                tv.setText(Integer.toString(steps));
+                /*TextView tv = (TextView) findViewById(R.id.stepText);
+                tv.setText(Integer.toString(steps));*/
                 pf.stepBackParticles();
             }
         });
@@ -96,6 +97,7 @@ public class ParticleTestActivity extends AppCompatActivity {
                 EditText ed = (EditText) findViewById(R.id.resetText);
                 numberOfParticles = Integer.parseInt(ed.getText().toString());
                 pf.reset(numberOfParticles);
+                pfLite.reset(numberOfParticles);
             }
         });
     }
@@ -144,15 +146,22 @@ public class ParticleTestActivity extends AppCompatActivity {
             fp.addRSS(bssidList.get(i), rssList.get(i));
         }
         //Log.d(TAG, fp.toString());
-        WifiFingerprint filteredFP = wFilter.filterBadSignals(fp, -80);
-        Log.d(TAG, filteredFP.toString());
-        // pf.measure(filteredFP);
-        pf.measurePDF(filteredFP);
+        //WifiFingerprint filteredFP = wFilter.filterBadSignals(fp, -80);
+        //Log.d(TAG, filteredFP.toString());
+         pf.measure(fp);
         double pos = pf.estimatePosition();
         String str = pf.getBestParticle();
-        Toast.makeText(this, Double.toString(pos) + " - " + str,
-                Toast.LENGTH_LONG).show();
+        /*Toast.makeText(this, Double.toString(pos) + " - " + str,
+                Toast.LENGTH_LONG).show();*/
         pf.sample();
+
+        pfLite.measure(fp);
+        String strLite = pfLite.getBestParticles(3);
+/*        Toast.makeText(this, strLite,
+                Toast.LENGTH_SHORT).show();*/
+        TextView tv = (TextView) findViewById(R.id.stepText);
+        tv.setText("Normal: " + pos + "\n" + "Lite: " + strLite);
+
     }
 
     public void loadNavigationPath() {
@@ -201,8 +210,9 @@ public class ParticleTestActivity extends AppCompatActivity {
         EditText ed = (EditText) findViewById(R.id.resetText);
         numberOfParticles = Integer.parseInt(ed.getText().toString());
         pf = new ParticleFilter(numberOfParticles, avgFilter);
-        pf.addPDFtoPF(listPDF);
         pf.start();
+        pfLite = new ParticleFilterStatic(numberOfParticles, avgFilter);
+        pfLite.start();
         started = true;
         registerScanning();
     }

@@ -16,4 +16,6 @@
     <string name="start_calibrate">Start Step Calibration</string>
     <string name="test_calibrate">Test Calibration</string>
     <string name="stop_calibrate">Stop Calibration</string>
+    <string name="title_activity_location_test">LocationTestActivity</string>
+    <string name="open_loc">Test Location</string>
 </resources>

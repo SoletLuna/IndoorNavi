@@ -32,6 +32,8 @@ import com.jjoe64.graphview.series.LineGraphSeries;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 import luh.uni.hannover.hci.indoornavi.Services.ActivityRecognitionService;
 
@@ -132,6 +134,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 return true;
             case R.id.open_motion:
                 startActivity(new Intent(this, MotionSensorTestActivity.class));
+            case R.id.open_loc:
+                startActivity(new Intent(this, LocationTestActivity.class));
                 return true;
         }
 

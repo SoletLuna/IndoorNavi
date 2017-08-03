@@ -54,7 +54,10 @@
             android:name=".MotionSensorTestActivity"
             android:label="@string/title_activity_step_test"
             android:theme="@style/AppTheme.NoActionBar" />
-
+        <activity
+            android:name=".LocationTestActivity"
+            android:label="@string/title_activity_location_test"
+            android:theme="@style/AppTheme.NoActionBar"></activity>
     </application>
 
 </manifest>

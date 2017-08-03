@@ -13,16 +13,14 @@ import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprintPDF;
 
 /**
- * Created by solet on 23/05/2017.
- *
- * Particlefilter for position estimation using wifi fingerprint measurements, for more info check
- * the gdrive doc.
+ * Created by solet on 03/08/2017.
  */
 
-public class ParticleFilter extends LocalisationParticle{
+public class ParticleFilterFusion extends LocalisationParticle {
 
     private int numberOfParticles;
     private List<Particle> listOfParticles = new ArrayList<>();
+    private List<Particle> staticParticles = new ArrayList<>();
     private Random rnd = new Random();
     private List<WifiFingerprint> navPath = new ArrayList<>();
     private List<Integer> navPoints = new ArrayList<>();
@@ -36,13 +34,9 @@ public class ParticleFilter extends LocalisationParticle{
     private int pD = 1;
     private double similarity;
 
-    public ParticleFilter(int particles, List<WifiFingerprint> path) {
+    public ParticleFilterFusion(int particles, List<WifiFingerprint> path) {
         numberOfParticles = particles;
         navPath = path;
-    }
-
-    public void addPDFtoPF(List<WifiFingerprintPDF> listPDF) {
-        navPDF = listPDF;
     }
 
     /**
@@ -75,8 +69,10 @@ public class ParticleFilter extends LocalisationParticle{
         for (int i=0; i < numberOfParticles; i++) {
             double number = numberOfParticles;
             Particle p = new Particle(i* dMax/(numberOfParticles-1), 1/number);
+            Particle p2 = new Particle(i* dMax/(numberOfParticles-1), 1/number);
             //Particle p = new Particle(0.0, 1/number);
             listOfParticles.add(p);
+            staticParticles.add(p2);
         }
     }
 
@@ -260,72 +256,4 @@ public class ParticleFilter extends LocalisationParticle{
 
     }
 
-
-    /**
-     * calculates the accuracy for the given measurement
-     * accuracy is calculated by checking the distance between the APs appearing in the measurement
-     * e.g if AP1 appears in the measurement and AP1 is in both FP next to the estimation, then for AP1 the accuracy is high
-     * do this for every AP in measurement
-     * @param keys
-     * @return
-     */
-    public double estimateAccuracy(Set<String>  keys) {
-        double acc = 0;
-        List<Integer> leftList = new ArrayList<>();
-        List<Integer> rightList = new ArrayList<>();
-        double x = lastEstimate;
-
-        // find all fingerprints left and right of estimate
-        for (int i=0; i < navPoints.size(); i++) {
-            if (navPoints.get(i) <= x) {
-                leftList.add(navPoints.get(i));
-            }
-            else if (navPoints.get(i) >= x) {
-                rightList.add(navPoints.get(i));
-            }
-        }
-
-        // find the first left and the first right fp, in which AP of measurement appears
-        for (String ap : keys) {
-            int l = -1;
-            int r = -1;
-            for (int i=0; i < navPath.size(); i++) {
-                if (i < leftList.size()) {
-                    if (navPath.get(i).getWifiMap().containsKey(ap)) {
-                        l = navPoints.get(i);
-                    }
-                } else {
-                    if (navPath.get(i).getWifiMap().containsKey(ap)) {
-                        r = navPoints.get(i);
-                        break;
-                    }
-                }
-            }
-            // if there is no AP left or right of estimate
-            if (l < 0 || r < 0) {
-                acc += 0;
-            } else {
-                int fpDistance = r - l;
-
-            }
-        }
-
-        return acc;
-    }
-
-    /**
-     * Returns if fingerprint data is on the same 1D-stripe.  Data that is on another 1D-stripe should
-     * count less for weighting. (Imagine a path along a rectangle
-     * @return
-     */
-    private boolean onPath(double x, double left, double right) {
-        boolean isOnPath = false;
-
-        for (int i=0; i < navPoints.size(); i++) {
-            if (navPoints.get(i) > x) {
-
-            }
-        }
-        return isOnPath;
-    }
 }

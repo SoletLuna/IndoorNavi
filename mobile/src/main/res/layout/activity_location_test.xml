@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.design.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="luh.uni.hannover.hci.indoornavi.LocationTestActivity">
+
+    <android.support.design.widget.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:theme="@style/AppTheme.AppBarOverlay">
+
+        <android.support.v7.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:popupTheme="@style/AppTheme.PopupOverlay" />
+
+    </android.support.design.widget.AppBarLayout>
+
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/fab"
+        android:layout_width="107dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="@dimen/fab_margin"
+        app:srcCompat="@android:drawable/ic_menu_add" />
+
+    <RadioGroup
+        android:id="@+id/LocationGroup"
+        android:layout_width="135dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_gravity="center|start">
+
+
+        <RadioButton
+            android:id="@+id/DistanceRadioButton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Distance" />
+
+        <RadioButton
+            android:id="@+id/StochasticRadioBUtton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Stochastic" />
+    </RadioGroup>
+
+    <RadioGroup
+        android:id="@+id/SensorGroup"
+        android:layout_width="122dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_gravity="center|end">
+
+        <RadioButton
+            android:id="@+id/SensorOnRadioButton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Sensor On" />
+
+        <RadioButton
+            android:id="@+id/SensorOffRadioButton"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Sensor Off" />
+
+    </RadioGroup>
+
+    <include
+        android:id="@+id/include4"
+        layout="@layout/content_location_test" />
+
+    <TextView
+        android:id="@+id/locationText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        android:layout_gravity="top|center"
+        android:layout_marginTop="150dp"/>
+
+</android.support.design.widget.CoordinatorLayout>

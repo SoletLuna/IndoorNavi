@@ -10,40 +10,28 @@ import java.util.Set;
 
 import luh.uni.hannover.hci.indoornavi.DataModels.Particle;
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
-import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprintPDF;
 
 /**
- * Created by solet on 23/05/2017.
- *
- * Particlefilter for position estimation using wifi fingerprint measurements, for more info check
- * the gdrive doc.
+ * Created by solet on 31/07/2017.
  */
 
-public class ParticleFilter extends LocalisationParticle{
+public class ParticleFilterStatic extends LocalisationParticle{
 
     private int numberOfParticles;
     private List<Particle> listOfParticles = new ArrayList<>();
     private Random rnd = new Random();
     private List<WifiFingerprint> navPath = new ArrayList<>();
     private List<Integer> navPoints = new ArrayList<>();
-    private List<WifiFingerprintPDF> navPDF = new ArrayList<>();
     private int xMax;
-    private double sigmaPos = 0.1;
     private double stepLength = 1;
-    private double resampleRandom = 0.000000001;
-    private double lastEstimate;
     private String TAG = "ParticleFilter";
     private int pD = 1;
-    private double similarity;
 
-    public ParticleFilter(int particles, List<WifiFingerprint> path) {
+    public ParticleFilterStatic(int particles, List<WifiFingerprint> path) {
         numberOfParticles = particles;
         navPath = path;
     }
 
-    public void addPDFtoPF(List<WifiFingerprintPDF> listPDF) {
-        navPDF = listPDF;
-    }
 
     /**
      * interpolate between the fingerprints, so particles can measure
@@ -80,68 +68,46 @@ public class ParticleFilter extends LocalisationParticle{
         }
     }
 
-    private Particle sampleParticle() {
-        if (listOfParticles.isEmpty()) {
-            return null;
-        }
-
-        double x = rnd.nextDouble();
-        double w = 0.0;
-
-        for (Particle p : listOfParticles) {
-            if (x < w + p.weight) {
-                return p;
-            }
-            w += p.weight;
-        }
-        return listOfParticles.get(listOfParticles.size()-1);
-    }
-
-    public void sample() {
-        // sample
-        List<Particle> sampledList = new ArrayList<>();
-        for (int i = 0; i < numberOfParticles ; i++) {
-            Particle sample = sampleParticle();
-            //double x = sample.x + ((rnd.nextDouble()*2) - 1)/10;
-            double randX = rnd.nextInt(1000) * 0.01 - 5.0;
-            double x = sample.x + randX;
-            if (x < 0) {
-                x = 0;
-            }
-            if (x > xMax) {
-                x = xMax;
-            }
-            Particle p = new Particle(x, sample.weight);
-            sampledList.add(p);
-        }
-        listOfParticles.clear();
-        listOfParticles = sampledList;
-    }
-
-    public double estimatePosition() {
-        double pos = 0.0;
-        for (Particle p : listOfParticles) {
-            pos += p.x * p.weight;
-        }
-        Log.d(TAG, pos +"");
-        return pos;
-    }
-
     public String getBestParticle() {
         double x = 0;
         double w = 0;
+        double similarity = 0;
         for (Particle p : listOfParticles) {
             if (p.weight > w) {
                 w = p.weight;
                 x = p.x;
+                similarity = p.similarity;
             }
         }
-        String best = x + ", " + w;
+        String best = x + ", " + w + ", " + similarity;
         return best;
     }
 
-    public List<Particle> getListOfParticles() {
-        return listOfParticles;
+    public String getBestParticles(int n) {
+        double x = 0;
+        double w = 0;
+        double similarity = 0;
+        String best = "";
+        List<Particle> tmpList = new ArrayList<>();
+        Particle tmpParticle = new Particle(0,0);
+        for (Particle p : listOfParticles) {
+            tmpList.add(p);
+        }
+        for (int i=0; i < n; i++) {
+            for (Particle p : tmpList) {
+                if (p.weight > w) {
+                    w = p.weight;
+                    x = p.x;
+                    similarity = p.similarity;
+                    tmpParticle = p;
+                }
+            }
+            w = 0;
+            best += System.lineSeparator();
+            best += tmpParticle.x + ", " + tmpParticle.weight + " - ";
+            tmpList.remove(tmpParticle);
+        }
+        return best;
     }
 
     public void stepParticles() {
@@ -166,10 +132,15 @@ public class ParticleFilter extends LocalisationParticle{
         }
     }
 
+    public List<Particle> getListOfParticles() {
+        return listOfParticles;
+    }
+
     public String measure(WifiFingerprint fp) {
         HashMap<String, List<Double>> measurement = fp.getWifiMap();
         Set<String> keys = measurement.keySet();
         int pID = 1;
+
         for (Particle p : listOfParticles) {
             List<Double> interpolatedList = new ArrayList<>();
             List<Double> measuredList = new ArrayList<>();
@@ -210,9 +181,63 @@ public class ParticleFilter extends LocalisationParticle{
                 }
 
             }
-            similarity = ((double)measuredList.size())/ ((double) fp.getWifiMap().size());
-            p.weight = calculateWeight(interpolatedList, measuredList);
-            Log.d(TAG, pID + ": " + p.x + " - " + p.weight + " - " + similarity);
+            p.similarity = ((double)measuredList.size())/ ((double) fp.getWifiMap().size());
+            p.weight = calculateWeight(interpolatedList, measuredList, p.similarity);
+            Log.d(TAG, pID + ": " + p.x + " - " + p.weight + " - " + p.similarity);
+            pID++;
+        }
+        normalizeWeights();
+        return "";
+    }
+
+    public String measure(WifiFingerprint fp, List<WifiFingerprint> stripes) {
+        HashMap<String, List<Double>> measurement = fp.getWifiMap();
+        Set<String> keys = measurement.keySet();
+        int pID = 1;
+
+        for (Particle p : listOfParticles) {
+            List<Double> interpolatedList = new ArrayList<>();
+            List<Double> measuredList = new ArrayList<>();
+            for (String key : keys) {
+                int l = -1;
+                int r = -1;
+                for (int i=0; i < navPath.size(); i++) {
+                    //Log.d(TAG, "Key: " + key + ", " + navPath.get(i).getWifiMap().keySet().toString());
+                    if (navPath.get(i).getWifiMap().containsKey(key)) {
+                        if (navPoints.get(i) <= p.x) {
+                            l = i;
+                        }
+                        if (navPoints.get(i) >= p.x) {
+                            if (i > r && r >= 0) {
+
+                            } else {
+                                r = i;
+                            }
+                        }
+                    }
+                }
+                if ((r >= 0 && l >= 0)) {
+                    double valueM = measurement.get(key).get(0);
+                    double valueL = navPath.get(l).getWifiMap().get(key).get(0);
+                    double valueR = navPath.get(r).getWifiMap().get(key).get(0);
+                    double mu;
+                    double posL = navPoints.get(l);
+                    double posR = navPoints.get(r);
+                    if ((l - r) == 0) {
+                        mu = 0;
+                    } else {
+                        mu = (p.x - posL) / (posR - posL);
+                    }
+                    double valueI = linearInterpolate(valueL, valueR, mu);
+                    //Log.d(TAG, pID + ": " + p.x +" - "+l+","+r+" - " + mu +" - " +valueL +", "+valueR+", "+valueI + " - " + key);
+                    interpolatedList.add(valueI);
+                    measuredList.add(valueM);
+                }
+
+            }
+            p.similarity = ((double)measuredList.size())/ ((double) fp.getWifiMap().size());
+            p.weight = calculateWeight(interpolatedList, measuredList, p.similarity);
+            Log.d(TAG, pID + ": " + p.x + " - " + p.weight + " - " + p.similarity);
             pID++;
         }
         normalizeWeights();
@@ -228,7 +253,7 @@ public class ParticleFilter extends LocalisationParticle{
         return score;
     }
 
-    private double calculateWeight(List<Double> values, List<Double> measuredValues) {
+    private double calculateWeight(List<Double> values, List<Double> measuredValues, double similarity) {
         double weight;
         double distance = 0;
 
@@ -273,7 +298,7 @@ public class ParticleFilter extends LocalisationParticle{
         double acc = 0;
         List<Integer> leftList = new ArrayList<>();
         List<Integer> rightList = new ArrayList<>();
-        double x = lastEstimate;
+        double x = 0.5; //lastEstimate;
 
         // find all fingerprints left and right of estimate
         for (int i=0; i < navPoints.size(); i++) {

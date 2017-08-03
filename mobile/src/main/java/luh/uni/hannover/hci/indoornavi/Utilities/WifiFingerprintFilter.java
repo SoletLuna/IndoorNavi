@@ -190,7 +190,7 @@ public class WifiFingerprintFilter {
         if (sigma <= 0) {
             sigma = 0.01;
         }
-        return sigma;
+        return Math.ceil(sigma*2);
     }
 
 

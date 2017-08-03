@@ -8,6 +8,7 @@ public class Particle {
 
     public double x;
     public double weight;
+    public double similarity;
 
     public Particle(double x, double weight) {
         this.x = x;

@@ -16,6 +16,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -25,27 +26,40 @@ import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
+import com.google.gson.Gson;
 
+import org.json.JSONException;
+
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
 import luh.uni.hannover.hci.indoornavi.Services.DataLayerPhoneService;
 import luh.uni.hannover.hci.indoornavi.Services.MotionService;
 import luh.uni.hannover.hci.indoornavi.Services.WifiService;
+import luh.uni.hannover.hci.indoornavi.Utilities.FileChooser;
+import luh.uni.hannover.hci.indoornavi.Utilities.Navigator;
 import luh.uni.hannover.hci.indoornavi.Utilities.WifiCoordinator;
 import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
 
 public class NavigationActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
-    private WifiCoordinator wifiCoord;
-    private List<WifiFingerprint> navigationPath;
+    private List<WifiFingerprint> navigationPath = new ArrayList<>();
     private String TAG = "Navigation";
     private boolean isNavRunning = false;
+    private FileChooser fileChooser;
 
     private String imagePath = "/storage/emulated/0/WiFiApp/ImagePaths/";
     private int imageIndex = 1;
     GoogleApiClient mGoogleApiClient;
+
+    private Navigator navigator;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,15 +67,14 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
         setContentView(R.layout.activity_navigation);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        setUpWifiCoordinator();
+        fileChooser = new FileChooser(this);
+        setUpNavigator();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-                startNavigation();
+                loadNavigationPath();
             }
         });
 
@@ -75,7 +88,7 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
         Intent i = new Intent(getApplicationContext(), MotionService.class);
         Intent i2 = new Intent(getApplicationContext(), WifiService.class);
         Intent i3 = new Intent(getApplicationContext(), DataLayerPhoneService.class);
-        stopService(i);
+       // stopService(i);
         stopService(i2);
         stopService(i3);
 
@@ -90,7 +103,7 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
     @Override
     protected void onResume() {
         super.onResume();
-        registerServices();
+        //registerServices();
         if (!mGoogleApiClient.isConnected()) {
             mGoogleApiClient.connect();
         }
@@ -116,7 +129,7 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
         Intent i = new Intent(getApplicationContext(), MotionService.class);
         Intent i2 = new Intent(getApplicationContext(), WifiService.class);
         Intent i3 = new Intent(getApplicationContext(), DataLayerPhoneService.class);
-        startService(i);
+       // startService(i);
         startService(i2);
         startService(i3);
 
@@ -125,15 +138,16 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
         LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, new IntentFilter("Watch"));
     }
 
-    private void setUpWifiCoordinator() {
-        wifiCoord = new WifiCoordinator();
+    private void setUpNavigator() {
+        //int id = R.id.DistanceRadioButton;
+        navigator = new Navigator(1,navigationPath);
     }
 
     /**
      * Gets called whenever a step is detected, checks if the step results in an image change or
      * something else
      */
-        private void updateFromStep() {
+    private void updateFromStep() {
         setNextImage();
     }
 
@@ -151,14 +165,12 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
      * appropriate fingerprint.
      */
     private void updateFromScan(Intent intent) {
-        wifiCoord.setUnknown(getUnknownFP(intent));
-        double dist = wifiCoord.getDistanceToNextFP(2); // replace this and the condition by whatever method we will use
-        if (dist < 20) {
-            imageIndex = wifiCoord.reachedCheckpoint();/*
-            Intent i = new Intent("sendImage");
-            i.putExtra("stepCount", imageIndex);
-            LocalBroadcastManager.getInstance(this).sendBroadcast(i);*/
-        }
+        WifiFingerprint fp = getUnknownFP(intent);
+        int index = navigator.resolveMeasure(fp);
+        TextView tv = (TextView) findViewById(R.id.navText);
+        String txt = "Current: " + navigationPath.get(index).getLocation();
+        txt += "\n" + "Next: " + navigationPath.get(index+1).getLocation();
+        tv.setText(txt);
     }
 
 
@@ -168,11 +180,11 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
             switch (intent.getAction()) {
                 case "Step":
                     Log.d(TAG, "Step received");
-                    updateFromStep();
+                    //updateFromStep();
                     return;
                 case "Scan":
-                        Log.d(TAG, "Scan received");
-                    //updateFromScan(intent);
+                    Log.d(TAG, "Scan received");
+                    updateFromScan(intent);
                     //updateFromStep(); //for debugging purposes only
                     return;
                 case "Watch":
@@ -217,9 +229,9 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
     }
 
     private void startNavigation() {
-        //registerServices();
+        registerServices();
         //isNavRunning = true;
-        navigationPath = wifiCoord.selectNavigationPath();
+        navigator.startNavigation();
     }
 
 
@@ -237,4 +249,41 @@ public class NavigationActivity extends AppCompatActivity implements GoogleApiCl
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
         Log.d(TAG, "GoogleApiClient connection failed");
     }
+
+    public void loadNavigationPath() {
+        fileChooser.setFileListener(new FileChooser.FileSelectedListener() {
+            @Override
+            public void fileSelected(File file) {
+                String filePath = file.getAbsolutePath();
+                Log.d(TAG, filePath);
+                try {
+                    FileInputStream fis = new FileInputStream(new File(filePath));
+                    if (fis != null) {
+                        InputStreamReader isReader = new InputStreamReader(fis);
+                        BufferedReader bufferedReader = new BufferedReader(isReader);
+                        String receive = "";
+                        try {
+                            while ((receive = bufferedReader.readLine()) != null) {
+                                parseFingerprints(receive);
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+                startNavigation();
+            }
+        }).showDialog();
+    }
+
+    public void parseFingerprints(String json) throws JSONException {
+        Gson gson = new Gson();
+        WifiFingerprint fp = gson.fromJson(json, WifiFingerprint.class);
+        navigationPath.add(fp);
+    }
+
 }
