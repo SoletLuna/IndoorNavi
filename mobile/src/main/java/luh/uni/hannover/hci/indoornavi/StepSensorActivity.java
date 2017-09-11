@@ -1,29 +1,22 @@
-package luh.uni.hannover.hci.indoornavi.Services;
+package luh.uni.hannover.hci.indoornavi;
 
-import android.app.Service;
-import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.os.IBinder;
-import android.support.annotation.Nullable;
-import android.support.v4.content.LocalBroadcastManager;
+import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.View;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.Arrays;
 import java.util.List;
 
-/**
- * Created by solet on 10/04/2017.
- * <p>
- * Service that will be used for the dead reckoning approach, thus it handle step detection.
- * It also should provide the current orientation (step length?) and the direction the user is moving.
- */
-
-public class MotionService extends Service implements SensorEventListener {
-
+public class StepSensorActivity extends AppCompatActivity implements SensorEventListener {
 
     SensorManager sManager;
     Sensor stepCountSensor;
@@ -51,32 +44,43 @@ public class MotionService extends Service implements SensorEventListener {
     double lastPeak = 0;
 
     String TAG = "StepThings";
-
     @Override
-    public void onCreate() {
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_step_sensor);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                registerSensors();
+            }
+        });
+    }
+
+    protected void onPause() {
+        super.onPause();
+        unregisterSensors();
+    }
+
+    private void registerSensors() {
         sManager = (SensorManager) getApplicationContext().getSystemService(SENSOR_SERVICE);
         stepCountSensor = sManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
         stepDetectSensor = sManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR);
         accelSensor = sManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-    }
-
-    @Override
-    public int onStartCommand(Intent i, int flags, int startId) {
 
         sManager.registerListener(this, accelSensor, SensorManager.SENSOR_DELAY_UI);
         /*sManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_UI);
         sManager.registerListener(this, stepDetectSensor, SensorManager.SENSOR_DELAY_UI);*/
-        Log.d(TAG, "Registered");
-        return START_STICKY;
+    }
+
+    private void unregisterSensors() {
+        sManager.unregisterListener(this);
     }
 
     @Override
-    public void onDestroy() {
-        sManager.unregisterListener(this, accelSensor);
-        //  mSensorManager.unregisterListener(this, magSensor);
-        Log.d(TAG, "Unregistered");
-    }
-
     public void onSensorChanged(SensorEvent sensorEvent) {
         if (sensorEvent.sensor == accelSensor) {
             float sum = 0;
@@ -170,10 +174,10 @@ public class MotionService extends Service implements SensorEventListener {
         if (type == "Peak") {
             long timeDiff = time - lastStepTime;
             //if (timeDiff >= adaptiveTimeThreshold - adaptiveTimeThreshold) {
-            peakDetected = true;
-            lastPeak = value;
-            valleyDetected = false;
-            // }
+                peakDetected = true;
+                lastPeak = value;
+                valleyDetected = false;
+           // }
         }
         else if (type == "Valley") {
             if (peakDetected) {
@@ -232,22 +236,13 @@ public class MotionService extends Service implements SensorEventListener {
 
 
     private void reportStep() {
-        onStep();
-    }
-
-    private void onStep() {
-        Intent i = new Intent("Step");
-        LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+        //Log.d(TAG, "step");
+/*        Log.d(TAG, "Step: " + adaptiveStepAverage + " - " + adaptiveStepDeviation);
+        Log.d(TAG, "Step: " + adaptiveTimeThreshold + " - " + adaptiveTimeDeviation);*/
     }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int i) {
 
-    }
-
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
     }
 }

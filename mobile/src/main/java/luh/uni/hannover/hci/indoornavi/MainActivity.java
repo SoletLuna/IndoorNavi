@@ -136,6 +136,10 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 startActivity(new Intent(this, MotionSensorTestActivity.class));
             case R.id.open_loc:
                 startActivity(new Intent(this, LocationTestActivity.class));
+            case R.id.open_step:
+                startActivity(new Intent(this, StepSensorActivity.class));
+            case R.id.open_navtest:
+                startActivity(new Intent(this, NavTestActivity.class));
                 return true;
         }
 
@@ -168,6 +172,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
     private void sendImage() {
         String filePath = imgPath + "img" + imgCount + ".jpg";
+        Log.d(TAGAPI, filePath);
         Bitmap myBitmap = BitmapFactory.decodeFile(filePath);
         Asset img = createAssetFromBitmap(myBitmap);
 

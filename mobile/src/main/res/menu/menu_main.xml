@@ -50,4 +50,16 @@
         android:orderInCategory="100"
         android:title="@string/open_loc"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/open_step"
+        android:orderInCategory="100"
+        android:title="@string/open_step"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/open_navtest"
+        android:orderInCategory="100"
+        android:title="@string/open_navtest"
+        app:showAsAction="never" />
 </menu>

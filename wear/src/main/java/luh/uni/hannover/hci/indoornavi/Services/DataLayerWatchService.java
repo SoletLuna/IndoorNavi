@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 
 public class DataLayerWatchService extends WearableListenerService implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
-    private static final long TIMEOUT_MS = 500;
+    private static final long TIMEOUT_MS = 200;
     GoogleApiClient mGoogleApiClient;
     private String TAG = "DataLayerWatchService";
 
@@ -58,6 +58,12 @@ public class DataLayerWatchService extends WearableListenerService implements Go
                     event.getDataItem().getUri().getPath().equals("/img")) {
                 DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
                 Asset asset = dataMapItem.getDataMap().getAsset("navImage");
+
+               /* int stepCount = dataMapItem.getDataMap().getInt("Step");
+                Intent intent = new Intent("StepCount");
+                intent.putExtra("Step", stepCount);
+                Log.d(TAG, stepCount +"");*/
+
                 loadBitmapFromAsset(asset);
             }
         }
@@ -78,7 +84,7 @@ public class DataLayerWatchService extends WearableListenerService implements Go
         // convert asset into a file descriptor and block until it's ready
         InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
                 mGoogleApiClient, asset).await().getInputStream();
-        mGoogleApiClient.disconnect();
+       // mGoogleApiClient.disconnect();
 
         if (assetInputStream == null) {
             Log.w(TAG, "Requested an unknown Asset.");

@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.Image;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
@@ -20,6 +21,7 @@ import luh.uni.hannover.hci.indoornavi.Services.DataLayerWatchService;
 public class WatchStartActivity extends Activity {
 
     private TextView mTextView;
+    private ImageView imgView;
 
     private final String TAG = "WatchStart";
 
@@ -33,6 +35,8 @@ public class WatchStartActivity extends Activity {
             @Override
             public void onLayoutInflated(WatchViewStub stub) {
                 mTextView = (TextView) stub.findViewById(R.id.text);
+                imgView = (ImageView) findViewById(R.id.image_View);
+
             }
         });
     }
@@ -68,9 +72,13 @@ public class WatchStartActivity extends Activity {
             Log.d(TAG, intent.getAction());
             switch (intent.getAction()) {
                 case "Image":
-                    ImageView imgView = (ImageView) findViewById(R.id.image_View);
-                    Bitmap image = intent.getParcelableExtra("img");
-                    imgView.setImageBitmap(image);
+                    //int stepCount = intent.getIntExtra("Step", 0);
+                    Bitmap bitmap = intent.getParcelableExtra("img");
+/*                    String formatted = String.format("%03d", stepCount);
+                    String imgString = "hci" + formatted;
+                    final int id = getResources().getIdentifier(imgString, "raw", getPackageName());
+                    final Bitmap bitmap = BitmapFactory.decodeResource(getResources(), id);*/
+                    imgView.setImageBitmap(bitmap);
                     return;
                 default: Log.d(TAG, intent.getAction());
             }

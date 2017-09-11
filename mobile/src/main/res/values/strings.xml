@@ -18,4 +18,8 @@
     <string name="stop_calibrate">Stop Calibration</string>
     <string name="title_activity_location_test">LocationTestActivity</string>
     <string name="open_loc">Test Location</string>
+    <string name="title_activity_step_sensor">StepSensorActivity</string>
+    <string name="open_step">Open Step Sensor</string>
+    <string name="title_activity_nav_test">NavTestActivity</string>
+    <string name="open_navtest">Open Nav Testing</string>
 </resources>

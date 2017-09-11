@@ -83,6 +83,34 @@ public class ParticleFilterStatic extends LocalisationParticle{
         return best;
     }
 
+    public double estimatePosition() {
+        double x = 0;
+        double w = 0;
+        List<Particle> tmpList = new ArrayList<>();
+        List<Particle> bestList = new ArrayList<>();
+        Particle tmpParticle = new Particle(0,0);
+        for (Particle p : listOfParticles) {
+            tmpList.add(p);
+        }
+        for (int i=0; i < 3; i++) {
+            for (Particle p : tmpList) {
+                if (p.weight > w) {
+                    w = p.weight;
+                    tmpParticle = p;
+                }
+            }
+            w = 0;
+            bestList.add(tmpParticle);
+            tmpList.remove(tmpParticle);
+        }
+
+        double location = 0;
+        for (Particle p : bestList) {
+            location += p.x;
+        }
+        return location/3;
+    }
+
     public String getBestParticles(int n) {
         double x = 0;
         double w = 0;
