@@ -100,6 +100,7 @@ public class ParticleFilterStatic extends LocalisationParticle{
                 }
             }
             w = 0;
+            Log.d(TAG, tmpParticle.x + "," + tmpParticle.weight);
             bestList.add(tmpParticle);
             tmpList.remove(tmpParticle);
         }

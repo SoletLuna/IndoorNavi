@@ -62,6 +62,34 @@
             android:text="Checkpoint" />
     </RadioGroup>
 
+    <RadioGroup
+        android:id="@+id/StepGroup"
+        android:layout_width="135dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center|end"
+        android:layout_marginBottom="170dp"
+        android:orientation="vertical">
+
+        <RadioButton
+            android:id="@+id/CheckWithSteps"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="With Steps" />
+
+        <RadioButton
+            android:id="@+id/CheckWithoutSteps"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Without Steps" />
+        </RadioGroup>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center|center"
+        android:text="Text here"
+        android:id="@+id/navTestText"/>
+
     <include layout="@layout/content_nav_test" />
 
 </android.support.design.widget.CoordinatorLayout>

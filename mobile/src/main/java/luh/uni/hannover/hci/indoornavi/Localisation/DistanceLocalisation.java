@@ -18,12 +18,14 @@ public class DistanceLocalisation extends Localisation {
     int mode = 2; // 1 or 2 for manhattan or euclidean distance
     String TAG = "DistLoc";
     String bla;
+    StringBuilder sb = new StringBuilder();
 
     public DistanceLocalisation(List<WifiFingerprint> navPath) {
         this.navPath = navPath;
     }
 
     public String measure(WifiFingerprint fp) {
+        sb.setLength(0);
         List<Double> distances = new ArrayList<>();
         List<Double> similarities = new ArrayList<>();
         List<Double> completeness = new ArrayList<>();
@@ -38,6 +40,7 @@ public class DistanceLocalisation extends Localisation {
         double compl = getCompleteness(fp, bestFp);
         //return bla + ", " + sim + ", " + compl;
         return bestFp.getLocation();
+        //return sb.toString();
     }
 
     private WifiFingerprint findBestDistance(List<Double> distances, List<Double> similarities) {
@@ -67,10 +70,12 @@ public class DistanceLocalisation extends Localisation {
                 // optional error, add -100 if it helps
             }
         }
-        Math.pow(dist, 1/mode);
+        dist = Math.sqrt(dist);
         if (!atLeastOne) {
             dist = 100000;
         }
+        sb.append(dist + " -" + fp1.getLocation());
+        sb.append(System.lineSeparator());
         return dist;
     }
 

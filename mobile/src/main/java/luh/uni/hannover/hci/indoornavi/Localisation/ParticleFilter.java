@@ -74,7 +74,7 @@ public class ParticleFilter extends LocalisationParticle{
         }
         for (int i=0; i < numberOfParticles; i++) {
             double number = numberOfParticles;
-            Particle p = new Particle(i* dMax/(numberOfParticles-1), 1/number);
+            Particle p = new Particle(0, 1/number);
             //Particle p = new Particle(0.0, 1/number);
             listOfParticles.add(p);
         }
@@ -103,7 +103,7 @@ public class ParticleFilter extends LocalisationParticle{
         for (int i = 0; i < numberOfParticles ; i++) {
             Particle sample = sampleParticle();
             //double x = sample.x + ((rnd.nextDouble()*2) - 1)/10;
-            double randX = rnd.nextInt(1000) * 0.01 - 5.0;
+            double randX = rnd.nextInt(20) - 10.0;
             double x = sample.x + randX;
             if (x < 0) {
                 x = 0;
@@ -112,6 +112,7 @@ public class ParticleFilter extends LocalisationParticle{
                 x = xMax;
             }
             Particle p = new Particle(x, sample.weight);
+            Log.d(TAG, p.x + " - " + p.weight);
             sampledList.add(p);
         }
         listOfParticles.clear();
@@ -144,10 +145,10 @@ public class ParticleFilter extends LocalisationParticle{
         return listOfParticles;
     }
 
-    public void stepParticles() {
+    public void stepParticles(int steps) {
         for (Particle p : listOfParticles) {
             double x = p.x;
-            x += stepLength * (rnd.nextGaussian() *0.15 + 1);
+            x += steps * (rnd.nextGaussian() *0.15 + 1);
             if (x > xMax)
                 p.x = xMax;
             else
@@ -212,7 +213,7 @@ public class ParticleFilter extends LocalisationParticle{
             }
             similarity = ((double)measuredList.size())/ ((double) fp.getWifiMap().size());
             p.weight = calculateWeight(interpolatedList, measuredList);
-            Log.d(TAG, pID + ": " + p.x + " - " + p.weight + " - " + similarity);
+            //Log.d(TAG, pID + ": " + p.x + " - " + p.weight + " - " + similarity);
             pID++;
         }
         normalizeWeights();

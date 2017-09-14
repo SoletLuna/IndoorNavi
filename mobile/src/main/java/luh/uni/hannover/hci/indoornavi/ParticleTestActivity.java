@@ -77,7 +77,7 @@ public class ParticleTestActivity extends AppCompatActivity {
                 steps++;
                 /*TextView tv = (TextView) findViewById(R.id.stepText);
                 tv.setText(Integer.toString(steps));*/
-                pf.stepParticles();
+                pf.stepParticles(1);
             }
         });
         stepBack.setOnClickListener(new View.OnClickListener() {

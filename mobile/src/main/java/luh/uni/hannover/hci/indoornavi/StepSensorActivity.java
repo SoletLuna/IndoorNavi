@@ -5,13 +5,21 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 
+import org.w3c.dom.Text;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -42,6 +50,15 @@ public class StepSensorActivity extends AppCompatActivity implements SensorEvent
     double adaptiveStepDeviation = 0;
     double adaptiveTimeDeviation = 0;
     double lastPeak = 0;
+    private StringBuilder sb = new StringBuilder();
+    Handler mHandler;
+    int stepCounterValue = 0;
+    int stepDetectorValue = 0;
+    int simpleStepValue = 0;
+    boolean logging = false;
+    boolean starting = false;
+    int counter = 0;
+    TextView tv;
 
     String TAG = "StepThings";
     @Override
@@ -50,18 +67,46 @@ public class StepSensorActivity extends AppCompatActivity implements SensorEvent
         setContentView(R.layout.activity_step_sensor);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
+        mHandler = new Handler();
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        tv = (TextView) findViewById(R.id.stepsensortextview);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                registerSensors();
+                if (!logging) {
+                    logging = true;
+                    mHandler.postDelayed(start, 5000);
+                }
+                else {
+                    saveLogFile();
+                    logging = false;
+                    mHandler.removeCallbacks(start);
+                    starting = false;
+                }
             }
         });
     }
 
-    protected void onPause() {
-        super.onPause();
+    private Runnable start = new Runnable() {
+        @Override
+        public void run() {
+            if (!starting) {
+                registerSensors();
+                starting = true;
+                sb.append("Simple - Detector");
+                sb.append(System.lineSeparator());
+            }
+
+            if (starting == true) {
+                sb.append(simpleStepValue + "," + stepDetectorValue);
+                sb.append(System.lineSeparator());
+            }
+            mHandler.postDelayed(start, 1000);
+        }
+    };
+
+    protected void onDestroy() {
+        super.onDestroy();
         unregisterSensors();
     }
 
@@ -72,8 +117,7 @@ public class StepSensorActivity extends AppCompatActivity implements SensorEvent
         accelSensor = sManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
         sManager.registerListener(this, accelSensor, SensorManager.SENSOR_DELAY_UI);
-        /*sManager.registerListener(this, stepCountSensor, SensorManager.SENSOR_DELAY_UI);
-        sManager.registerListener(this, stepDetectSensor, SensorManager.SENSOR_DELAY_UI);*/
+        sManager.registerListener(this, stepDetectSensor, SensorManager.SENSOR_DELAY_UI);
     }
 
     private void unregisterSensors() {
@@ -82,6 +126,9 @@ public class StepSensorActivity extends AppCompatActivity implements SensorEvent
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
+        if (sensorEvent.sensor == stepDetectSensor) {
+            stepDetectorValue++;
+        }
         if (sensorEvent.sensor == accelSensor) {
             float sum = 0;
             for (float f: sensorEvent.values) {
@@ -236,13 +283,42 @@ public class StepSensorActivity extends AppCompatActivity implements SensorEvent
 
 
     private void reportStep() {
-        //Log.d(TAG, "step");
-/*        Log.d(TAG, "Step: " + adaptiveStepAverage + " - " + adaptiveStepDeviation);
-        Log.d(TAG, "Step: " + adaptiveTimeThreshold + " - " + adaptiveTimeDeviation);*/
+        simpleStepValue++;
     }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int i) {
+
+    }
+
+    public void saveLogFile() {
+        File root = new File(Environment.getExternalStorageDirectory(), "IndoorNavigation");
+        String name ="stepcounting.txt";
+        File[] fileArr = root.listFiles();
+        List<String> fileNames = new ArrayList<>();
+        for (File f : fileArr) {
+            fileNames.add(f.getName());
+        }
+
+        int counter = 1;
+        while (fileNames.contains(name)) {
+            counter++;
+            name = "stepcounting" + counter + ".txt";
+        }
+
+        if (!root.mkdirs()) {
+            Log.e(TAG, "Directory not created");
+        }
+
+        try {
+            File myFile = new File(root, name);
+            FileOutputStream fos = new FileOutputStream(myFile);
+            fos.write(sb.toString().getBytes());
+            fos.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
 }

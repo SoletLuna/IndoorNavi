@@ -17,6 +17,8 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.widget.RadioGroup;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -53,7 +55,7 @@ public class NavTestActivity extends AppCompatActivity implements GoogleApiClien
 
     GoogleApiClient mGoogleApiClient;
     String TAG = "NaviTest";
-    int stepCount = 1;
+    int stepCount;
     double estimateLocation = 0;
     //String navMode = "Step"; // "Particle", "Step", "Checkpoint"
     private FileChooser fileChooser;
@@ -64,12 +66,17 @@ public class NavTestActivity extends AppCompatActivity implements GoogleApiClien
     private DistanceLocalisation checkpoint;
     private WifiFingerprintFilter wFilter;
     private int totalCount = 0;
-    private String imgPath = "/storage/emulated/0/IndoorNavigation/imageHCI/";
+    private String imgPath = "/storage/emulated/0/IndoorNavigation/"; //imageHCI
+    String fileName = "";
     Handler mHandler;
     RadioGroup methodGroup;
+    RadioGroup stepGroup;
+    int stepMode = 0;
     int navMode = 0;
     int checkCount = 0;
     int failedScans = 0;
+    int successScans = 0;
+    TextView tv;
 
     String finalDestination;
     String nextTarget;
@@ -84,21 +91,24 @@ public class NavTestActivity extends AppCompatActivity implements GoogleApiClien
         fileChooser = new FileChooser(this);
         wFilter = new WifiFingerprintFilter();
         methodGroup = (RadioGroup) findViewById(R.id.MethodGroup);
+        stepGroup = (RadioGroup) findViewById(R.id.StepGroup);
+        tv = (TextView) findViewById(R.id.navTestText);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                failedScans = 0;
                 parsedRoute.clear();
                 navRoute.clear();
-                stepCount = 1;
+                stepCount = 0;
                 loadNavigationPath();
             }
         });
     }
 
-    protected void onPause() {
-        super.onPause();
+    protected void onDestroy() {
+        super.onDestroy();
         stopServices();
     }
 
@@ -135,8 +145,7 @@ public class NavTestActivity extends AppCompatActivity implements GoogleApiClien
 
     private void startNavigation() {
         navMode = methodGroup.getCheckedRadioButtonId();
-        connectAPI();
-        connectServices();
+        stepMode = stepGroup.getCheckedRadioButtonId();
         navRoute = wFilter.filterAverageRSS(parsedRoute);
         totalCount = 0;
         for (WifiFingerprint fp : navRoute) {
@@ -145,9 +154,11 @@ public class NavTestActivity extends AppCompatActivity implements GoogleApiClien
         switch (navMode) {
             case R.id.ParticleFilter:
                 partFilter = new ParticleFilter(totalCount + 1, navRoute);
+                partFilter.start();
                 break;
             case R.id.AltParticleFilter:
                 altPartFilter = new ParticleFilterStatic(totalCount + 1, navRoute);
+                altPartFilter.start();
                 break;
             case R.id.Step:
                 Log.d(TAG, "Stepster");
@@ -164,20 +175,34 @@ public class NavTestActivity extends AppCompatActivity implements GoogleApiClien
                 break;
 
         }
-        updateImage(stepCount);
         mHandler = new Handler();
-        mHandler.postDelayed(periodicSend, 1000);
+        mHandler.postDelayed(periodicSend, 5000);
+        mHandler.postDelayed(start, 4500);
     }
 
+    private Runnable start = new Runnable() {
+        @Override
+        public void run() {
+            connectAPI();
+            connectServices();
+        }
+    };
+
     private void finishNavigation() {
-        celebration();
         stopServices();
         mHandler.removeCallbacks(periodicSend);
+        celebration();
     }
 
     private void celebration() {
         // do something to show we are done
-        Log.d(TAG, "HELLO");
+        Log.d(TAG, "FINISHED");
+        PutDataMapRequest dataMap = PutDataMapRequest.create("/end");
+        dataMap.getDataMap().putString("end", "Finished Navigation");
+        dataMap.setUrgent();
+        PutDataRequest request = dataMap.asPutDataRequest();
+        PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi
+                .putDataItem(mGoogleApiClient, request);
     }
 
     private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
@@ -199,31 +224,41 @@ public class NavTestActivity extends AppCompatActivity implements GoogleApiClien
         }
     };
 
+    //consider showing a few images in advance for the steps, so you can see where you go and not where you are
     private void updateStep() {
         switch (navMode) {
             case R.id.ParticleFilter:
-                stepCount++;
-                partFilter.stepParticles();
+                //stepCount++;
+                partFilter.stepParticles(2);
                 return;
             case R.id.AltParticleFilter:
                 stepCount++;
                 return;
             case R.id.Step:
-                if (stepCount < (totalCount * 0.95)) {
-                    stepCount++;
-                }
-                else {
+                if (stepCount < (totalCount)) {
+                    tv.setText("" + stepCount);
+                    stepCount = stepCount + 2;
+                } else {
                     finishNavigation();
                 }
                 return;
             case R.id.Checkpoint:
-                stepCount++;
-                checkCount++;
-                //if the recent scans have not located the next fingerprint, then either you are lost or further ahead, locate nexttarget equal to curent stepcount;
-                for (int i=0; i < checkPointCountList.size(); i++) {
-                    int compare = checkPointCountList.get(i);
-                    if (checkCount == compare && failedScans > 5) {
-                        nextTarget = navRoute.get(i+1).getLocation();
+                if (stepMode == R.id.CheckWithSteps) {
+                    stepCount = stepCount + 2;
+                    checkCount = checkCount + 2;
+                    //if the recent scans have not located the next fingerprint, then either you are lost or further ahead, locate nexttarget equal to curent stepcount;
+                    for (int i = 0; i < checkPointCountList.size(); i++) {
+                        int compare = checkPointCountList.get(i);
+                        if (checkCount < compare && failedScans > 4) {
+                            if (navRoute.get(i).getLocation() == finalDestination) {
+                                finishNavigation();
+                            } else {
+                                nextTarget = navRoute.get(i).getLocation();
+                                checkCount = (compare + checkCount) / 2;
+                                failedScans = 0;
+                                successScans = 0;
+                            }
+                        }
                     }
                 }
                 return;
@@ -244,29 +279,58 @@ public class NavTestActivity extends AppCompatActivity implements GoogleApiClien
 
     private void updateScan(Intent intent) {
         WifiFingerprint fp = getUnknownFP(intent);
+        if (fp.getNumberOfAPs() == 0) {
+            return;
+        }
         switch (navMode) {
             case R.id.ParticleFilter:
                 partFilter.measure(fp);
-                estimateLocation = partFilter.estimatePosition();
-                if (estimateLocation > (totalCount * .95)) {
+                double estimatePart = partFilter.estimatePosition();
+                partFilter.sample();
+                estimateLocation = estimatePart;
+                tv.setText(estimateLocation+"");
+                if (estimateLocation > (totalCount * .98)) {
                     finishNavigation();
                 }
                 return;
             case R.id.AltParticleFilter:
                 altPartFilter.measure(fp);
-                estimateLocation = altPartFilter.estimatePosition();
-                if (estimateLocation > (totalCount * .95)) {
-                    finishNavigation();
+                double estimateAltPart = altPartFilter.estimatePosition();
+                estimateLocation = estimateAltPart;
+/*                if (estimateAltPart > estimateLocation + 10 || estimateAltPart < estimateLocation - 10) {
+                    return;
+                }
+                else {
+                    estimateLocation = estimateAltPart;
+                }*/
+                tv.setText(estimateLocation +"");
+                if (estimateLocation > (totalCount * .98)) {
+                    //finishNavigation();
                 }
                 return;
             case R.id.Step:
                 return;
             case R.id.Checkpoint:
                 if (nextTarget == checkpoint.measure(fp)) {
+                    if (nextTarget == finalDestination) {
+                        checkCount = checkPointCountList.get(checkPointCountList.size()-1);
+                        finishNavigation();
+                    }
                     for (int i=0; i < navRoute.size(); i++) {
                         if (nextTarget == navRoute.get(i).getLocation()) {
-                            checkCount = checkPointCountList.get(i);
-                            break;
+                            double compare = checkPointCountList.get(i);
+                            if (compare > checkCount + 50) {
+                                successScans++;
+                            }
+                            else {
+                                int check = checkPointCountList.get(i);
+                                //checkCount = (checkCount + check) / 2;
+                                checkCount = check;
+                                nextTarget = navRoute.get(i + 1).getLocation();
+                                failedScans = 0;
+                                successScans = 0;
+                                break;
+                            }
                         }
                     }
                 }
@@ -294,6 +358,7 @@ public class NavTestActivity extends AppCompatActivity implements GoogleApiClien
                     updateImage(stepCount);
                     break;
                 case R.id.Checkpoint:
+                    tv.setText(nextTarget + " - " + checkCount + " - " + " - f:" + failedScans + " - s:" + successScans);
                     updateImage(checkCount);
                     break;
         }
@@ -308,8 +373,21 @@ public class NavTestActivity extends AppCompatActivity implements GoogleApiClien
     }
 
     private void updateImage(int imageCount) {
+        if (imageCount == 0) {
+            imageCount = 1;
+        }
+
+        if (stepMode == R.id.CheckWithoutSteps) {
+            imageCount = imageCount +4;
+        }
+/*        if (navMode == R.id.AltParticleFilter) {
+            imageCount = imageCount + 4;
+            if (imageCount > totalCount) {
+                imageCount = totalCount;
+            }
+        }*/
         String formatted = String.format("%03d", imageCount);
-        String filePath = imgPath + "hci" + formatted + ".jpg";
+        String filePath = imgPath + fileName + formatted + ".jpg";
         Log.d(TAG, filePath);
         Bitmap myBitmap = BitmapFactory.decodeFile(filePath);
         Asset img = createAssetFromBitmap(myBitmap);
@@ -332,6 +410,10 @@ public class NavTestActivity extends AppCompatActivity implements GoogleApiClien
                 Log.d(TAG, filePath);
                 try {
                     FileInputStream fis = new FileInputStream(new File(filePath));
+                    String tmpFile = filePath.substring(filePath.lastIndexOf(File.separator)+1);
+                    fileName = tmpFile.substring(0, tmpFile.lastIndexOf('.'));
+                    imgPath = imgPath + fileName +"/";
+                    Log.d(TAG, fileName);
                     if (fis != null) {
                         InputStreamReader isReader = new InputStreamReader(fis);
                         BufferedReader bufferedReader = new BufferedReader(isReader);

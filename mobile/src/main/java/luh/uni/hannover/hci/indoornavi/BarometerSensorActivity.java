@@ -131,7 +131,6 @@ public class BarometerSensorActivity extends AppCompatActivity implements Sensor
 
     }
 
-
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
         if (sensorEvent.sensor == pressureSensor) {

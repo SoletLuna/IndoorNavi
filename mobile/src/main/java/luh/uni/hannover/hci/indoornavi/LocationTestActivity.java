@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
@@ -23,6 +24,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -32,6 +34,7 @@ import luh.uni.hannover.hci.indoornavi.DataModels.WifiFingerprint;
 import luh.uni.hannover.hci.indoornavi.Localisation.DistanceLocalisation;
 import luh.uni.hannover.hci.indoornavi.Localisation.Localisation;
 import luh.uni.hannover.hci.indoornavi.Localisation.StochasticLocalisation;
+import luh.uni.hannover.hci.indoornavi.Services.MotionService;
 import luh.uni.hannover.hci.indoornavi.Services.WifiService;
 import luh.uni.hannover.hci.indoornavi.Utilities.FileChooser;
 import luh.uni.hannover.hci.indoornavi.Utilities.WifiFingerprintFilter;
@@ -44,6 +47,10 @@ public class LocationTestActivity extends AppCompatActivity {
     private WifiFingerprintFilter wFilter;
     private boolean started = false;
     private Localisation localisator;
+    int stepCount = 0;
+    StringBuilder sb = new StringBuilder();
+    String location = "";
+    boolean logging = false;
 
     RadioGroup locGroup;
     RadioGroup sensorGroup;
@@ -66,11 +73,19 @@ public class LocationTestActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                navigationPath.clear();;
-                int locFilter = locGroup.getCheckedRadioButtonId();
-                int sensor = sensorGroup.getCheckedRadioButtonId();
-                setUpFilter(locFilter, sensor);
-                loadNavigationPath();
+                if (!logging) {
+                    stepCount = 0;
+                    navigationPath.clear();
+                    int locFilter = locGroup.getCheckedRadioButtonId();
+                    int sensor = sensorGroup.getCheckedRadioButtonId();
+                    setUpFilter(locFilter, sensor);
+                    loadNavigationPath();
+                    logging = true;
+                }
+                else {
+                    saveLogFile();
+                    logging = false;
+                }
             }
         });
     }
@@ -82,14 +97,19 @@ public class LocationTestActivity extends AppCompatActivity {
 
     private void startScan() {
         Intent i = new Intent(getApplicationContext(), WifiService.class);
+        Intent i2 = new Intent(getApplicationContext(), MotionService.class);
         startService(i);
+        startService(i2);
         LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, new IntentFilter("Scan"));
+        LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, new IntentFilter("Step"));
         started = true;
     }
 
     private void stopScan() {
         Intent i = new Intent(getApplicationContext(), WifiService.class);
+        Intent i2 = new Intent(getApplicationContext(), MotionService.class);
         stopService(i);
+        stopService(i2);
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mMessageReceiver);
     }
 
@@ -103,6 +123,11 @@ public class LocationTestActivity extends AppCompatActivity {
                     if (started) {
                         Log.d(TAG, "Scan received");
                         getMeasurement(intent);
+                    }
+                    return;
+                case "Step":
+                    if (started) {
+                        stepCount = stepCount + 2;
                     }
                     return;
                 default: Log.d(TAG, intent.getAction());
@@ -124,10 +149,11 @@ public class LocationTestActivity extends AppCompatActivity {
         //Log.d(TAG, navigationPathPDF.get(0).toString());
         Log.d(TAG, fp.toString());
         String bla = localisator.measure(fp);
-
+        location = bla;
         TextView tv = (TextView) findViewById(R.id.locationText);
-        tv.setText("Current Location: " + bla);
-
+        tv.setText("Current Location: " + bla + " - " + stepCount);
+        sb.append(location + " - " + stepCount);
+        sb.append(System.lineSeparator());
        /* Toast.makeText(this, bla,
                 Toast.LENGTH_LONG).show();*/
     }
@@ -136,6 +162,7 @@ public class LocationTestActivity extends AppCompatActivity {
         startScan();
         //testFingerprints();
     }
+
 
     private void setUpFilter(int loc, int sensor) {
         switch (loc) {
@@ -213,6 +240,37 @@ public class LocationTestActivity extends AppCompatActivity {
         Gson gson = new Gson();
         WifiFingerprint fp = gson.fromJson(json, WifiFingerprint.class);
         navigationPath.add(fp);
+    }
+
+    public void saveLogFile() {
+        File root = new File(Environment.getExternalStorageDirectory(), "IndoorNavigation");
+        String name ="fingerprintlocalisation.txt";
+        File[] fileArr = root.listFiles();
+        List<String> fileNames = new ArrayList<>();
+        for (File f : fileArr) {
+            fileNames.add(f.getName());
+        }
+
+        int counter = 1;
+        while (fileNames.contains(name)) {
+            counter++;
+            name = "fingerprintlocalisation" + counter + ".txt";
+        }
+
+        if (!root.mkdirs()) {
+            Log.e(TAG, "Directory not created");
+        }
+
+        try {
+            File myFile = new File(root, name);
+            FileOutputStream fos = new FileOutputStream(myFile);
+            fos.write(sb.toString().getBytes());
+            fos.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
 }

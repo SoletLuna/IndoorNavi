@@ -54,18 +54,28 @@ public class DataLayerWatchService extends WearableListenerService implements Go
     public void onDataChanged(DataEventBuffer dataEvents) {
         Log.d(TAG, "DataChanged");
         for (DataEvent event : dataEvents) {
-            if (event.getType() == DataEvent.TYPE_CHANGED &&
-                    event.getDataItem().getUri().getPath().equals("/img")) {
-                DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
-                Asset asset = dataMapItem.getDataMap().getAsset("navImage");
+            if (event.getType() == DataEvent.TYPE_CHANGED) {
+                if (event.getDataItem().getUri().getPath().equals("/img")) {
+                    DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
+                    Asset asset = dataMapItem.getDataMap().getAsset("navImage");
 
                /* int stepCount = dataMapItem.getDataMap().getInt("Step");
                 Intent intent = new Intent("StepCount");
                 intent.putExtra("Step", stepCount);
                 Log.d(TAG, stepCount +"");*/
 
-                loadBitmapFromAsset(asset);
+                    loadBitmapFromAsset(asset);
+                }
+                if (event.getDataItem().getUri().getPath().equals("/end")) {
+                    DataMapItem dataMapItem2 = DataMapItem.fromDataItem(event.getDataItem());
+                    String str = dataMapItem2.getDataMap().getString("end");
+                    Intent intent = new Intent("End");
+                    intent.putExtra("end", str);
+                    Log.d(TAG, "ENDING");
+                    LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+                }
             }
+
         }
     }
 

@@ -134,10 +134,13 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 return true;
             case R.id.open_motion:
                 startActivity(new Intent(this, MotionSensorTestActivity.class));
+                return true;
             case R.id.open_loc:
                 startActivity(new Intent(this, LocationTestActivity.class));
+                return true;
             case R.id.open_step:
                 startActivity(new Intent(this, StepSensorActivity.class));
+                return true;
             case R.id.open_navtest:
                 startActivity(new Intent(this, NavTestActivity.class));
                 return true;

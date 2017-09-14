@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.media.Image;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
@@ -57,6 +58,7 @@ public class WatchStartActivity extends Activity {
         Intent i = new Intent(getApplicationContext(), DataLayerWatchService.class);
         startService(i);
         LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(mMessageReceiver, new IntentFilter("Image"));
+        LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(mMessageReceiver, new IntentFilter("End"));
         Log.d(TAG, "registered");
     }
 
@@ -69,6 +71,9 @@ public class WatchStartActivity extends Activity {
     private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            if (mTextView.getText() != "") {
+                mTextView.setText("");
+            }
             Log.d(TAG, intent.getAction());
             switch (intent.getAction()) {
                 case "Image":
@@ -79,6 +84,13 @@ public class WatchStartActivity extends Activity {
                     final int id = getResources().getIdentifier(imgString, "raw", getPackageName());
                     final Bitmap bitmap = BitmapFactory.decodeResource(getResources(), id);*/
                     imgView.setImageBitmap(bitmap);
+                    imgView.setScaleType(ImageView.ScaleType.FIT_XY);
+                    return;
+                case "End":
+                    String str = intent.getStringExtra("end");
+                    mTextView.setText(str);
+                    mTextView.bringToFront();
+                    mTextView.setTextColor(Color.YELLOW);
                     return;
                 default: Log.d(TAG, intent.getAction());
             }
